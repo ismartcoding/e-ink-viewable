@@ -1,0 +1,41 @@
+html,
+body,
+.c9s-issues-table-filter-bar,
+.mat-chip.mat-standard-chip,
+.c9s-issues-table-container.mat-card .c9s-issues-table .mat-header-row,
+.mat-chip.mat-standard-chip::after,
+.mat-calendar-body-today.mat-calendar-body-selected,
+.wrapper.show-border,
+.resource-selector,
+.app-bar {
+  background-color: #fff !important;
+}
+body {
+  --fire-color-sidenav-bg-default: #fff !important;
+  --fire-color-sidenav-bg-selected: #fff !important;
+  --fire-color-primary-default: #fff !important;
+  --theme-color-fg-rgb: #fff !important;
+  --fire-color-tab-underline: #fff !important;
+  --fire-color-sidenav-hover-bg: #fff !important;
+  --fire-color-popover-bg: #fff !important;
+}
+.navbar {
+  background-image: none !important;
+}
+.mat-card,
+.mat-chip,
+.mat-calendar-body-today.mat-calendar-body-selected,
+.resource-selector,
+.wrapper.show-border {
+  border: 1px solid #000 !important;
+}
+
+mat-row,
+mat-header-row,
+mat-footer-row,
+th.mat-header-cell,
+td.mat-cell,
+td.mat-footer-cell,
+.c9s-issues-table-filter-bar {
+  border-color: transparent !important;
+}

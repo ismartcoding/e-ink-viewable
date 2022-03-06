@@ -1,0 +1,45 @@
+{
+  "name": "Ink View",
+  "description": "Make some websites has better view in ink screen.",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "icons": {
+    "48": "icons/icon_48.png",
+    "128": "icons/icon_128.png"
+  },
+  "action": {
+    "default_title": "Ink View"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*"],
+      "js": [],
+      "css": ["css/base.css", "css/github.com.css"]
+    },
+    {
+      "matches": ["https://console.firebase.google.com/*"],
+      "js": [],
+      "css": ["css/base.css", "css/console.firebase.google.com.css"]
+    },
+    {
+      "matches": ["https://google.com/*", "https://www.google.com/*"],
+      "js": [],
+      "css": ["css/base.css", "css/google.com.css"]
+    },
+    {
+      "matches": ["https://zhihu.com/*", "https://*.zhihu.com/*"],
+      "js": [],
+      "css": ["css/base.css", "css/zhihu.com.css"]
+    },
+    {
+      "matches": [
+        "https://stackoverflow.com/*",
+        "https://*.stackoverflow.com/*"
+      ],
+      "js": [],
+      "css": ["css/base.css", "css/stackoverflow.com.css"]
+    }
+  ],
+  "permissions": ["tabs"],
+  "host_permissions": ["*://*/*"]
+}
