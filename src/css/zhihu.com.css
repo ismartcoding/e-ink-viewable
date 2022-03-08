@@ -7,7 +7,12 @@
 .KfeCollection-PcCollegeCard-type,
 .SearchItem-type,
 .TooltipContent,
-.VoteButton {
+.VoteButton,
+.AppHeader-notifications > div,
+a.Button--withLabel,
+.ExploreSpecialCard-contentTag,
+.QuestionType,
+.AppHeader-messages > div {
   background-color: #fff !important;
   border: 1px solid #000 !important;
 }
@@ -15,6 +20,7 @@
 body,
 .VotableTopicCard,
 .CornerButton:hover,
+.UserCover--colorBlock,
 .QuestionItem-footer--writeAnswerButton {
   background-color: #fff !important;
 }
@@ -27,6 +33,8 @@ body,
 }
 .Question-sideColumn,
 .Footer,
+.GlobalSideBar,
+.TopstoryItem--advertCard,
 .Post-Sub .Recommendations-Main {
   display: none !important;
 }

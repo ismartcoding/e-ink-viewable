@@ -1,4 +1,5 @@
 body {
+  background-color: #fff !important;
   --black-025: #fff !important;
   --black-050: #fff !important;
   --black-075: #fff !important;
@@ -31,6 +32,12 @@ body {
   --theme-post-owner-new-background-color: #fff !important;
 }
 
+.top-bar,
+.top-bar .searchbar .s-input,
+.top-bar .-logo:hover,
+.top-bar .-secondary .-link:hover  {
+  background-color: #fff !important;
+}
 .s-navigation .s-navigation--item.is-selected,
 pre.s-code-block,
 .badge,
@@ -40,6 +47,7 @@ pre.s-code-block,
   border: 1px solid #000 !important;
 }
 body.theme-highcontrast .s-btn-group .s-btn.is-selected,
+.top-bar a.-logo.topbar-icon-on,
 .s-post-summary--stats
   .s-post-summary--stats-item.has-answers.has-accepted-answer {
   background-color: transparent !important;
@@ -59,7 +67,9 @@ div.clc-jobs-multi.blue .slanted-bg {
 #hot-network-questions,
 .s-popover--arrow,
 #footer,
+.js-dismissable-hero,
 #left-sidebar,
+.site-header,
 .sidebar-linked {
   display: none !important;
 }

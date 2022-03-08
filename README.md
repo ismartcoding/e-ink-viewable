@@ -1,6 +1,6 @@
 # Ink Chrome Extension
 
-A chrome extension to make some websites has better view in e-ink screen.
+A chrome extension to make some websites have better view in e-ink screen.
 
 ## How to use
 

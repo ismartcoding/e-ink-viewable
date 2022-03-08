@@ -1,6 +1,6 @@
 {
   "name": "Ink View",
-  "description": "Make some websites has better view in ink screen.",
+  "description": "Make some websites have better view in e-ink screen.",
   "version": "1.0.0",
   "manifest_version": 3,
   "icons": {
@@ -32,9 +32,15 @@
       "css": ["css/base.css", "css/zhihu.com.css"]
     },
     {
+      "matches": ["https://reddit.com/*", "https://*.reddit.com/*"],
+      "js": [],
+      "css": ["css/base.css", "css/reddit.com.css"]
+    },
+    {
       "matches": [
         "https://stackoverflow.com/*",
-        "https://*.stackoverflow.com/*"
+        "https://*.stackoverflow.com/*",
+        "https://*.stackexchange.com/*"
       ],
       "js": [],
       "css": ["css/base.css", "css/stackoverflow.com.css"]

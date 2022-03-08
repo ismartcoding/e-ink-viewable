@@ -1,6 +1,14 @@
 body {
+  --color-accent-emphasis: #fff !important;
   --color-page-header-bg: #fff !important;
   --color-neutral-emphasis: #fff !important;
+  --color-accent-subtle: #fff !important;
+  --color-canvas-subtle: #fff !important;
+  --color-neutral-subtle: #fff !important;
+  --color-neutral-emphasis-plus: #fff !important;
+  --color-border-default: #000 !important;
+  --color-accent-muted: #000 !important;
+  --color-border-muted: #000 !important;
 }
 .Box,
 .Header,
@@ -8,6 +16,7 @@ body {
 .Box-header,
 .feature-callout,
 .btn,
+.flash,
 .dropdown-item:focus,
 .dropdown-item:hover,
 div.color-bg-subtle,
@@ -44,16 +53,20 @@ div.color-bg-subtle,
 .UnderlineNav .Counter,
 .btn .Counter,
 div.color-bg-inset,
+.TimelineItem-badge,
 .SelectMenu-item,
 .jump-to-suggestions-results-container
   [aria-selected="true"]
   .jump-to-suggestions-path,
 article.color-bg-subtle,
 .State,
+.Counter,
+.commit-ref,
 div.color-bg-done-emphasis,
 .jump-to-suggestions-results-container
   .navigation-focus
   .jump-to-suggestions-path {
+  background-image: none !important;
   background-color: #fff !important;
 }
 .btn,
@@ -85,15 +98,16 @@ div.border,
 .markdown-body .highlight pre,
 .markdown-body pre,
 article.border,
+.flash,
 .State,
+.commit-ref,
+.TimelineItem-badge,
+.hx_tooltip,
+.filter-item.selected, .filter-item[aria-selected=true], .filter-item[aria-current]:not([aria-current=false]),
 .topic-tag {
   border: 1px solid #000 !important;
 }
 
-div.border-bottom,
-h3.border-bottom {
-  border-bottom: 1px solid #000 !important;
-}
 div.border-top {
   border-top: 1px solid #000 !important;
 }
@@ -103,10 +117,16 @@ div.border-top {
 .BorderGrid-cell {
   border-color: transparent !important;
 }
-.header-search-wrapper svg {
+.header-search-wrapper svg,
+.footer,
+div.footer,
+aside[aria-label="Explore"],
+.TimelineItem-break {
   display: none !important;
 }
-.Box-header {
+.Box-header,
+div.border-bottom,
+h3.border-bottom {
   border-bottom: none !important;
 }
 .dropdown-menu::before,
@@ -119,11 +139,12 @@ div.border-top {
 aside.border-right {
   border-right-color: #000 !important;
 }
-article.color-bg-subtle {
+article.color-bg-subtle,
+div.color-shadow-large,
+details.color-shadow-extra-large,
+form.color-shadow-extra-large,
+div.color-shadow-extra-large {
   box-shadow: none !important;
-}
-.footer {
-  display: none !important;
 }
 .application-main {
   margin-bottom: 100px;

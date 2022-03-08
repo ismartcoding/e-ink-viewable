@@ -1,0 +1,14 @@
+* {
+  --newCommunityTheme-widgetColors-sidebarWidgetHeaderColor: #fff !important;
+  --newCommunityTheme-widgetColors-sidebarWidgetBorderColor: #000 !important;
+  --newCommunityTheme-postLine: #000 !important;
+  --newRedditTheme-field: #fff !important;
+  --pseudo-before-background: #fff !important;
+}
+a[role="button"],
+button[role="button"],
+.subredditvars-r-trueoffmychest > div {
+  border: 1px solid #000 !important;
+  background-color: #fff !important;
+  background-color: #fff !important;
+}
