@@ -37,6 +37,11 @@
       "css": ["css/base.css", "css/reddit.com.css"]
     },
     {
+      "matches": ["https://figma.com/*", "https://www.figma.com/*"],
+      "js": [],
+      "css": ["css/figma.com.css"]
+    },
+    {
       "matches": [
         "https://stackoverflow.com/*",
         "https://*.stackoverflow.com/*",

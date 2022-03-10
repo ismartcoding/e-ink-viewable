@@ -1,10 +1,10 @@
 body {
-  --color-accent-emphasis: #fff !important;
   --color-page-header-bg: #fff !important;
   --color-neutral-emphasis: #fff !important;
   --color-accent-subtle: #fff !important;
   --color-canvas-subtle: #fff !important;
   --color-neutral-subtle: #fff !important;
+  --color-notifications-row-read-bg: #fff !important;
   --color-neutral-emphasis-plus: #fff !important;
   --color-border-default: #000 !important;
   --color-accent-muted: #000 !important;
@@ -63,6 +63,7 @@ article.color-bg-subtle,
 .Counter,
 .commit-ref,
 div.color-bg-done-emphasis,
+.filter-item.selected, .filter-item[aria-selected=true], .filter-item[aria-current]:not([aria-current=false]),
 .jump-to-suggestions-results-container
   .navigation-focus
   .jump-to-suggestions-path {
@@ -81,13 +82,11 @@ div.color-bg-done-emphasis,
 .Box-body,
 .header-search-wrapper,
 .dropdown-menu,
-.markdown-body h2,
 .SelectMenu-header,
 .form-control,
 .form-select,
 div.color-border-muted,
 li.color-border-muted,
-.markdown-body h1,
 .dropdown-divider,
 div.border,
 .UnderlineNav .Counter,
@@ -125,6 +124,8 @@ aside[aria-label="Explore"],
   display: none !important;
 }
 .Box-header,
+.markdown-body h1,
+.markdown-body h2,
 div.border-bottom,
 h3.border-bottom {
   border-bottom: none !important;
@@ -148,4 +149,12 @@ div.color-shadow-extra-large {
 }
 .application-main {
   margin-bottom: 100px;
+}
+
+.notification-indicator .mail-status {
+    top: -5px !important;
+    left: 12px !important;
+    width: 8px !important;
+    height: 8px !important;
+    border: none !important;
 }
