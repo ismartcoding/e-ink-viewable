@@ -66,6 +66,7 @@ article.color-bg-subtle,
 .topic-tag-action .add-topic-button:hover,
 .topic-tag-action .remove-topic-button:hover,
 div.color-bg-done-emphasis,
+.dropdown-menu,
 .topic-tag-action:active, .topic-tag-action:hover, .delete-topic-button:active, .delete-topic-button:hover, .topic-tag:active, .topic-tag:hover,
 .filter-item.selected, .filter-item[aria-selected=true], .filter-item[aria-current]:not([aria-current=false]),
 .jump-to-suggestions-results-container
@@ -165,4 +166,11 @@ div.color-shadow-extra-large {
 }
 .topic-tag-action {
   overflow: hidden;
+}
+
+.dropdown-menu {
+  background-clip: border-box !important; /* fix dropdown-menu background becomes tranparent on hover */
+}
+.pl-ii {
+  background-color: #fee !important;
 }

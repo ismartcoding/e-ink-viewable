@@ -23,12 +23,14 @@ body, .ng-star-inserted, .canvas-theme-container {
   --fire-color-tab-underline: #fff !important;
   --fire-color-sidenav-hover-bg: #fff !important;
   --fire-color-popover-bg: #fff !important;
+  --fire-color-featuretitle-badge-bg: #fff !important;
 }
 .navbar {
   background-image: none !important;
 }
 .mat-card,
 .mat-chip,
+.mat-menu-panel,
 .mat-calendar-body-today.mat-calendar-body-selected,
 .resource-selector,
 .wrapper.show-border {
