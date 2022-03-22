@@ -1,0 +1,10 @@
+body {
+    --vt-c-green: #fff !important;
+}
+.eslint-code-container, div[class*=language-] {
+    background-color: #fff !important;
+    border: 1px solid #000 !important;
+}
+.monaco-editor *, code {
+    background-color: #fff !important;
+}

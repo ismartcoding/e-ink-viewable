@@ -18,6 +18,7 @@ a.Button--withLabel,
 }
 
 body,
+.Button--primary.Button--grey,
 .VotableTopicCard,
 .CornerButton:hover,
 .UserCover--colorBlock,

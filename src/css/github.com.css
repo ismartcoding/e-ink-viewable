@@ -6,7 +6,6 @@ body {
   --color-neutral-subtle: #fff !important;
   --color-notifications-row-read-bg: #fff !important;
   --color-neutral-emphasis-plus: #fff !important;
-  --color-accent-emphasis: #fff !important;
   --color-border-default: #000 !important;
   --color-accent-muted: #000 !important;
   --color-border-muted: #000 !important;
@@ -132,7 +131,8 @@ aside[aria-label="Explore"],
 .Box-header,
 .markdown-body h1,
 .markdown-body h2,
-div.border-bottom,
+.jump-to-suggestions-results-container .navigation-item,
+#readme .border-bottom,
 h3.border-bottom {
   border-bottom: none !important;
 }
@@ -173,4 +173,9 @@ div.color-shadow-extra-large {
 }
 .pl-ii {
   background-color: #fee !important;
+}
+
+.pagination .current, .pagination .current:hover, .pagination [aria-current]:not([aria-current=false]) {
+  background-color: #fff !important;
+  border: 1px solid #000 !important;
 }
