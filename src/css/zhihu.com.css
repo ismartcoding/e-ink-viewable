@@ -28,7 +28,7 @@ body,
 .CommentsV2-withPagination {
   border-color: #000 !important;
 }
-.SignFlowHomepage {
+.SignFlowHomepage, .button, .wrapper {
   background-image: none !important;
   background-color: #fff !important;
 }

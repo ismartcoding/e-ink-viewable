@@ -17,5 +17,6 @@
 }
 
 ::selection {
-  background: #fee !important;
+  background: #000 !important;
+  color: #fff !important;
 }
