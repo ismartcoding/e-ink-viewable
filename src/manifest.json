@@ -47,6 +47,16 @@
       "css": ["css/base.css", "css/liangjingkanji.github.io.css"]
     },
     {
+      "matches": ["https://www.typescriptlang.org/*"],
+      "js": [],
+      "css": ["css/base.css", "css/typescriptlang.org.css"]
+    },
+    {
+      "matches": ["https://codepen.io/*"],
+      "js": [],
+      "css": ["css/base.css", "css/codepen.io.css"]
+    },
+    {
       "matches": ["https://vuejs.org/*", "https://*.vuejs.org/*", "https://*.intlify.dev/*"],
       "js": [],
       "css": ["css/base.css", "css/vuejs.org.css"]

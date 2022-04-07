@@ -1,0 +1,6 @@
+html, html.light-theme {
+    --background-color: #fff !important;
+}
+#index-2 .blue, #top-menu, .version-bar, .version-bar p a, #index-2 .light-grey, #site-footer {
+    background-color: #fff !important;
+}

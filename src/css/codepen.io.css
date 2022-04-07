@@ -1,0 +1,36 @@
+:root {
+    --editor-top-bar-background: #fff !important;
+    --tab-bg: #fff !important;
+    --cp-input-bg: #fff !important;
+    --cp-button-bg: #fff !important;
+    --cp-input-focus-bg: #fff !important;
+    --cp-button-hover-bg: #fff !important;
+    --cp-button-hover-color: #000 !important;
+    --tab-border-color: #000 !important;
+    --resizer-border: #000 !important;
+    --cp-pen-dropdown-bg: #fff !important;
+    background-color: #fff !important;
+}
+
+.mobile-editor-nav button.selected,
+.mobile-editor-nav button,
+.box.box.box, .editor .top-boxes, .CodeMirror-gutter-wrapper, body.project .editor-pane, body.project .editor {
+    background-color: #fff !important;
+}
+
+.mobile-editor-nav button.selected {
+    border-bottom: 1px solid #000 !important;
+}
+
+.CodeMirror-simplescroll-horizontal div, .CodeMirror-simplescroll-vertical div {
+    border: 1px solid #000 !important;
+    background-color: #fff !important;
+}
+
+div.CodeMirror-cursor {
+    border-left-color: #000 !important;
+}
+
+.CodeMirror-selected, .CodeMirror-focused .CodeMirror-selected {
+    background: #eee !important;
+}

@@ -1,4 +1,5 @@
-body {
+:root {
+    --code-font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace !important;
     --vt-c-green: #fff !important;
 }
 .eslint-code-container, div[class*=language-], .home .hero .action-button {
