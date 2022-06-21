@@ -1,8 +1,14 @@
-* {
+*,
+*:hover {
   text-shadow: none !important;
   color: #000 !important;
   box-shadow: none !important;
 }
+
+*:not(:empty) {
+  background-color: transparent !important;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
 }
@@ -11,6 +17,7 @@
 ::-webkit-scrollbar-thumb:hover {
   background-color: #fff !important;
 }
+
 ::-webkit-scrollbar-thumb {
   background-color: #fff !important;
   border: 1px solid #000 !important;

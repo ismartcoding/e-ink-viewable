@@ -12,65 +12,30 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://github.com/*"],
-      "js": [],
-      "css": ["css/base.css", "css/github.com.css"]
-    },
-    {
-      "matches": ["https://console.firebase.google.com/*"],
-      "js": [],
-      "css": ["css/base.css", "css/console.firebase.google.com.css"]
-    },
-    {
-      "matches": ["https://google.com/*", "https://www.google.com/*"],
-      "js": [],
-      "css": ["css/base.css", "css/google.com.css"]
-    },
-    {
-      "matches": ["https://zhihu.com/*", "https://*.zhihu.com/*"],
-      "js": [],
-      "css": ["css/base.css", "css/zhihu.com.css"]
-    },
-    {
-      "matches": ["https://reddit.com/*", "https://*.reddit.com/*"],
-      "js": [],
-      "css": ["css/base.css", "css/reddit.com.css"]
-    },
-    {
-      "matches": ["https://developer.android.com/*"],
-      "js": [],
-      "css": ["css/base.css", "css/developer.android.com.css"]
-    },
-    {
-      "matches": ["https://liangjingkanji.github.io/*"],
-      "js": [],
-      "css": ["css/base.css", "css/liangjingkanji.github.io.css"]
-    },
-    {
-      "matches": ["https://www.typescriptlang.org/*"],
-      "js": [],
-      "css": ["css/base.css", "css/typescriptlang.org.css"]
-    },
-    {
-      "matches": ["https://codepen.io/*"],
-      "js": [],
-      "css": ["css/base.css", "css/codepen.io.css"]
-    },
-    {
-      "matches": ["https://vuejs.org/*", "https://*.vuejs.org/*", "https://*.intlify.dev/*"],
-      "js": [],
-      "css": ["css/base.css", "css/vuejs.org.css"]
+      "matches": [
+        "*://*/*"
+      ],
+      "js": [
+        "inject.js"
+      ],
+      "css": [
+        "css/base.css"
+      ]
     },
     {
       "matches": [
-        "https://stackoverflow.com/*",
-        "https://*.stackoverflow.com/*",
-        "https://*.stackexchange.com/*"
+        "https://github.com/*"
       ],
       "js": [],
-      "css": ["css/base.css", "css/stackoverflow.com.css"]
+      "css": [
+        "css/github.com.css"
+      ]
     }
   ],
-  "permissions": ["tabs"],
-  "host_permissions": ["*://*/*"]
+  "permissions": [
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ]
 }
