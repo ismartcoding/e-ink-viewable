@@ -1,6 +1,6 @@
 {
   "name": "Ink View",
-  "description": "Make some websites have better view in e-ink screen.",
+  "description": "Make all websites have better view in e-ink screen.",
   "version": "1.0.0",
   "manifest_version": 3,
   "icons": {
