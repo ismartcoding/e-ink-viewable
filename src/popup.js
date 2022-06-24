@@ -1,6 +1,6 @@
 
 function updateUI(paused) {
-    $('#toggle').text(paused ? 'Resume' : 'Pause')
+    $('#toggle').text(paused ? 'Apply ink style' : 'Remove ink style')
 }
 chrome.tabs.query(
     {

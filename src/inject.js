@@ -10,6 +10,7 @@ function getLuma(color) {
 
 const tagNames = ['body', 'div', 'a', 'button', 'span', 'header', 'footer',
     'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'summary', 'details',
+    'table', 'th', 'td', 'thead', 'tfoot', 'tbody',
     'pre', 'code', 'blockquote']
 
 function updateStyle(node) {
