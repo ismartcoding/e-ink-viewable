@@ -9,7 +9,8 @@ function getLuma(color) {
 }
 
 const tagNames = ['body', 'div', 'a', 'button', 'span', 'header', 'footer',
-    'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'summary', 'details', 'code', 'blockquote']
+    'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'summary', 'details',
+    'pre', 'code', 'blockquote']
 
 function updateStyle(node) {
     const style = window.getComputedStyle(node)
@@ -19,13 +20,18 @@ function updateStyle(node) {
         const isOverlay = ['fixed', 'absolute'].includes(style.position) && style.left === '0px' && style.top === '0px' && style.right === '0px' && style.bottom === '0px'
         if (node.textContent.trim() && !isOverlay) { // has text content
             node.style.setProperty('background-color', '#fff', 'important')
+
+            // add border for code block
+            if (node.tagName.toLowerCase() === 'pre') {
+                node.style.setProperty('border', '1px solid #000', 'important')
+            }
         }
     }
 
     node.style.setProperty('color', '#000', 'important')
 
     const borderColor = style.borderColor
-    if (borderColor) {
+    if (borderColor && borderColor !== 'rgb(0, 0, 0)') {
         const b = getLuma(borderColor)
         if (b > 125) { // too light
             node.style.setProperty('border-color', '#000', 'important')
