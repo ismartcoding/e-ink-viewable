@@ -8,7 +8,8 @@ function getLuma(color) {
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 }
 
-const tagNames = ['body', 'div', 'a', 'button', 'span', 'header', 'footer', 'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5']
+const tagNames = ['body', 'div', 'a', 'button', 'span', 'header', 'footer',
+    'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'summary', 'details', 'code', 'blockquote']
 
 function updateStyle(node) {
     const style = window.getComputedStyle(node)
