@@ -8,7 +8,11 @@
     "128": "icons/icon_128.png"
   },
   "action": {
-    "default_title": "Ink View"
+    "default_title": "Ink View",
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_page": "script-src 'self' 'unsafe-eval'; object-src 'self';"
   },
   "content_scripts": [
     {
@@ -33,7 +37,8 @@
     }
   ],
   "permissions": [
-    "tabs"
+    "tabs",
+    "storage"
   ],
   "host_permissions": [
     "*://*/*"
