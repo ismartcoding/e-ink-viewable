@@ -10,6 +10,8 @@ body {
   --color-border-default: #000 !important;
   --color-accent-muted: #000 !important;
   --color-border-muted: #000 !important;
+  --color-btn-primary-text: #000 !important;
+  --color-fg-on-emphasis: #000 !important;
 }
 .Box,
 .Header,
