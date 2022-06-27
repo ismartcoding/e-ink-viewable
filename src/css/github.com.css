@@ -1,3 +1,8 @@
+*,
+*:hover {
+  color: #000 !important;
+}
+
 body {
   --color-header-bg: #fff !important;
   --color-page-header-bg: #fff !important;
