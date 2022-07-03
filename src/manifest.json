@@ -1,18 +1,15 @@
 {
-  "name": "Ink View",
+  "name": "E-ink Viewable",
   "description": "Make all websites have better view in e-ink screen.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "manifest_version": 3,
   "icons": {
     "48": "icons/icon_48.png",
     "128": "icons/icon_128.png"
   },
   "action": {
-    "default_title": "Ink View",
+    "default_title": "E-ink Viewable",
     "default_popup": "popup.html"
-  },
-  "content_security_policy": {
-    "extension_page": "script-src 'self' 'unsafe-eval'; object-src 'self';"
   },
   "content_scripts": [
     {
@@ -37,10 +34,7 @@
     }
   ],
   "permissions": [
-    "tabs",
+    "activeTab",
     "storage"
-  ],
-  "host_permissions": [
-    "*://*/*"
   ]
 }
