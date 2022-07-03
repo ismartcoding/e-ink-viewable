@@ -19,11 +19,17 @@ function updateStyle(node) {
     const backgroundColor = style.backgroundColor
     if (backgroundColor && backgroundColor !== 'transparent' && backgroundColor !== 'rgb(255, 255, 255)') {
         const isOverlay = ['fixed', 'absolute'].includes(style.position) && style.left === '0px' && style.top === '0px' && style.right === '0px' && style.bottom === '0px'
-        if (node.textContent.trim() && !isOverlay) { // has text content
+        const tag = node.tagName.toLowerCase()
+        const luma = getLuma(backgroundColor)
+        if ((node.textContent.trim() || tag === 'input' || luma < 125) && !isOverlay) { // has text content
             node.style.setProperty('background-color', '#fff', 'important')
 
+            if (style.background.indexOf('linear-gradient') !== -1) {   // remove linear gradient
+                node.style.setProperty('background', '#fff', 'important')
+            }
+
             // add border for code block
-            if (node.tagName.toLowerCase() === 'pre') {
+            if (tag === 'pre') {
                 node.style.setProperty('border', '1px solid #000', 'important')
             }
         }
@@ -52,7 +58,15 @@ chrome.storage.sync.get([`i:${window.location.host}`], function (items) {
 
         const observer = new MutationObserver((mutationList) => {
             for (const mutation of mutationList) {
-                mutation.target && updateStyle(mutation.target)
+                if (mutation.target) {
+                    updateStyle(mutation.target)
+                    mutation.target.childNodes.forEach((node) => {
+                        if (!node.tagName || !tagNames.includes(node.tagName.toLowerCase())) {
+                            return
+                        }
+                        updateStyle(node)
+                    })
+                }
             }
         })
 
