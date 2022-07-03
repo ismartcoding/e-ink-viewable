@@ -11,4 +11,4 @@ A chrome extension to make all websites have better view in e-ink screen.
 ## Samples
 
 <img src="images/github.png" width="200" title="github.com">
-<img src="images/stackoverflow.png" width="200" title="stackoverflow.com">
+<img src="images/stackoverflow.gif" title="stackoverflow.com">
