@@ -8,10 +8,7 @@ function getLuma(color) {
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 }
 
-const tagNames = ['body', 'div', 'a', 'button', 'span', 'header', 'footer',
-    'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'summary', 'details',
-    'table', 'th', 'td', 'thead', 'tfoot', 'tbody', 'input',
-    'pre', 'code', 'blockquote']
+const ignoreTagNames = ['html', 'head', 'script', 'style', 'link', 'meta', 'title', 'img']
 
 function updateStyle(node) {
     const style = window.getComputedStyle(node)
@@ -50,7 +47,7 @@ chrome.storage.sync.get([`i:${window.location.host}`], function (items) {
     let paused = items[`i:${window.location.host}`]
     if (!paused) {
         document.querySelectorAll('*').forEach((node) => {
-            if (!tagNames.includes(node.tagName.toLowerCase())) {
+            if (ignoreTagNames.includes(node.tagName.toLowerCase())) {
                 return
             }
             updateStyle(node)
@@ -61,7 +58,7 @@ chrome.storage.sync.get([`i:${window.location.host}`], function (items) {
                 if (mutation.target) {
                     updateStyle(mutation.target)
                     mutation.target.childNodes.forEach((node) => {
-                        if (!node.tagName || !tagNames.includes(node.tagName.toLowerCase())) {
+                        if (!node.tagName || ignoreTagNames.includes(node.tagName.toLowerCase())) {
                             return
                         }
                         updateStyle(node)
