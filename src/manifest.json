@@ -1,7 +1,7 @@
 {
   "name": "E-ink Viewable",
   "description": "Make all websites have better view in e-ink screen.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "manifest_version": 3,
   "icons": {
     "48": "icons/icon_48.png",

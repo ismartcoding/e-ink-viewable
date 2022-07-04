@@ -1,4 +1,4 @@
-# Ink Chrome Extension
+# E-ink Viewable
 
 A chrome extension to make all websites have better view in e-ink screen.
 
