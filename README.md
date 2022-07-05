@@ -2,7 +2,11 @@
 
 A chrome extension to make all websites have better view in e-ink screen.
 
-## How to use
+## Install from Chrome Web Store
+
+https://chrome.google.com/webstore/detail/e-ink-viewable/lfeckmgmmnioloncabbkcddnnooofdmg
+
+## Install from source code
 
 1. Open `chrome://extensions/` in Chrome.
 2. Enable `Developer mode`.
