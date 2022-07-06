@@ -12,11 +12,11 @@ const ignoreTagNames = ['html', 'head', 'script', 'style', 'link', 'meta', 'titl
 
 function updateStyle(node) {
     const style = window.getComputedStyle(node)
+    const tag = node.tagName.toLowerCase()
 
     const backgroundColor = style.backgroundColor
     if (backgroundColor && backgroundColor !== 'transparent' && backgroundColor !== 'rgb(255, 255, 255)') {
         const isOverlay = ['fixed', 'absolute'].includes(style.position) && style.left === '0px' && style.top === '0px' && style.right === '0px' && style.bottom === '0px'
-        const tag = node.tagName.toLowerCase()
         const luma = getLuma(backgroundColor)
         if ((node.textContent.trim() || tag === 'input' || luma < 125) && !isOverlay) { // has text content
             node.style.setProperty('background-color', '#fff', 'important')
@@ -40,6 +40,10 @@ function updateStyle(node) {
         if (b > 125) { // too light
             node.style.setProperty('border-color', '#000', 'important')
         }
+    }
+
+    if (tag === 'svg') {
+        node.style.setProperty('fill', 'currentColor', 'important')
     }
 }
 
