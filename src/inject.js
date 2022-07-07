@@ -3,21 +3,42 @@ function parseRgbString(rgb) {
     return rgb.replace(/[^\d,]/g, '').split(',')
 }
 
-function getLuma(color) {
+//http://www.w3.org/TR/AERT#color-contrast
+function getBrightness(color) {
     const c = parseRgbString(color)
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    return (c[0] * 299 + c[1] * 587 + c[2] * 114) / 1000
+}
+
+function isDark(color) {
+    return getBrightness(color) < 128
 }
 
 const ignoreTagNames = ['html', 'head', 'script', 'style', 'link', 'meta', 'title', 'img', 'video', 'audio']
+const ignoreCustomTags = ['video', 'audio', 'img']
+
+function ignoreTag(tag) {
+    if (ignoreTagNames.includes(tag)) {
+        return true
+    }
+
+    if (ignoreCustomTags.some(it => tag.includes(it))) {
+        return true
+    }
+
+    return false
+}
 
 function updateStyle(node) {
+    if (!node.tagName || ignoreTag(node.tagName.toLowerCase())) {
+        return
+    }
+
     const style = window.getComputedStyle(node)
     const tag = node.tagName.toLowerCase()
 
     const backgroundColor = style.backgroundColor
-    if (backgroundColor && backgroundColor !== 'transparent' && backgroundColor !== 'rgb(255, 255, 255)') {
-        const luma = getLuma(backgroundColor)
-        if ((node.textContent.trim() || tag === 'input')) { // has text content
+    if (backgroundColor && backgroundColor !== 'transparent' && backgroundColor !== 'rgb(255, 255, 255)' && backgroundColor !== 'rgba(0, 0, 0, 0)') {
+        if (node.textContent.trim() || tag === 'input' || isDark(backgroundColor)) { // has text content
             node.style.setProperty('background-color', '#fff', 'important')
 
             // add border for code block
@@ -32,11 +53,10 @@ function updateStyle(node) {
     }
 
     node.style.setProperty('color', '#000', 'important')
-    
+
     const borderColor = style.borderColor
     if (borderColor && borderColor !== 'rgb(0, 0, 0)') {
-        const b = getLuma(borderColor)
-        if (b > 125) { // too light
+        if (!isDark(borderColor)) { // too light
             node.style.setProperty('border-color', '#000', 'important')
         }
     }
@@ -50,9 +70,6 @@ chrome.storage.sync.get([`i:${window.location.host}`], function (items) {
     let paused = items[`i:${window.location.host}`]
     if (!paused) {
         document.querySelectorAll('*').forEach((node) => {
-            if (ignoreTagNames.includes(node.tagName.toLowerCase())) {
-                return
-            }
             updateStyle(node)
         })
 
@@ -61,9 +78,6 @@ chrome.storage.sync.get([`i:${window.location.host}`], function (items) {
                 if (mutation.target) {
                     updateStyle(mutation.target)
                     mutation.target.childNodes.forEach((node) => {
-                        if (!node.tagName || ignoreTagNames.includes(node.tagName.toLowerCase())) {
-                            return
-                        }
                         updateStyle(node)
                     })
                 }
