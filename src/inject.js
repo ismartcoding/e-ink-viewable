@@ -8,7 +8,7 @@ function getLuma(color) {
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 }
 
-const ignoreTagNames = ['html', 'head', 'script', 'style', 'link', 'meta', 'title', 'img']
+const ignoreTagNames = ['html', 'head', 'script', 'style', 'link', 'meta', 'title', 'img', 'video', 'audio']
 
 function updateStyle(node) {
     const style = window.getComputedStyle(node)
@@ -16,24 +16,23 @@ function updateStyle(node) {
 
     const backgroundColor = style.backgroundColor
     if (backgroundColor && backgroundColor !== 'transparent' && backgroundColor !== 'rgb(255, 255, 255)') {
-        const isOverlay = ['fixed', 'absolute'].includes(style.position) && style.left === '0px' && style.top === '0px' && style.right === '0px' && style.bottom === '0px'
         const luma = getLuma(backgroundColor)
-        if ((node.textContent.trim() || tag === 'input' || luma < 125) && !isOverlay) { // has text content
+        if ((node.textContent.trim() || tag === 'input')) { // has text content
             node.style.setProperty('background-color', '#fff', 'important')
 
-            if (style.background.indexOf('linear-gradient') !== -1) {   // remove linear gradient
-                node.style.setProperty('background', '#fff', 'important')
-            }
-
             // add border for code block
-            if (tag === 'pre') {
+            if (tag === 'pre' && node.className.trim() !== 'CodeMirror-line') {
                 node.style.setProperty('border', '1px solid #000', 'important')
             }
         }
     }
 
-    node.style.setProperty('color', '#000', 'important')
+    if (style.background.indexOf('linear-gradient') !== -1) {   // remove linear gradient
+        node.style.setProperty('background', '#fff', 'important')
+    }
 
+    node.style.setProperty('color', '#000', 'important')
+    
     const borderColor = style.borderColor
     if (borderColor && borderColor !== 'rgb(0, 0, 0)') {
         const b = getLuma(borderColor)
