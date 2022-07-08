@@ -1,7 +1,7 @@
 {
   "name": "E-ink Viewable",
-  "description": "Make all websites have better view in e-ink screen.",
-  "version": "1.0.2",
+  "description": "Make all websites viewable in e-ink screen, convert black-white theme to white-black automatically.",
+  "version": "1.0.3",
   "manifest_version": 3,
   "icons": {
     "48": "icons/icon_48.png",
