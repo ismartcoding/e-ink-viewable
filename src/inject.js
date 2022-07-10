@@ -14,14 +14,24 @@ function isDark(color) {
 }
 
 const ignoreTagNames = ['html', 'head', 'script', 'style', 'link', 'meta', 'title', 'img', 'video', 'audio']
-const ignoreCustomTags = ['video', 'audio', 'img']
 
-function ignoreTag(tag) {
+function ignoreTag(node) {
+    if (!node.tagName) {
+        return true
+    }
+
+    const tag = node.tagName.toLowerCase()
+
     if (ignoreTagNames.includes(tag)) {
         return true
     }
 
-    if (ignoreCustomTags.some(it => tag.includes(it))) {
+    // ignore custom tags which contain video, audio, img...
+    if (['video', 'audio', 'img'].some(it => tag.includes(it))) {
+        return true
+    }
+
+    if (tag === 'input' && ['checkbox', 'radio'].includes(node.type)) {
         return true
     }
 
@@ -29,7 +39,7 @@ function ignoreTag(tag) {
 }
 
 function updateStyle(node) {
-    if (!node.tagName || ignoreTag(node.tagName.toLowerCase())) {
+    if (ignoreTag(node)) {
         return
     }
 
@@ -40,7 +50,6 @@ function updateStyle(node) {
     if (backgroundColor && backgroundColor !== 'transparent' && backgroundColor !== 'rgb(255, 255, 255)' && backgroundColor !== 'rgba(0, 0, 0, 0)') {
         if (node.textContent.trim() || tag === 'input' || isDark(backgroundColor)) { // has text content
             node.style.setProperty('background-color', '#fff', 'important')
-
             // add border for code block
             if (tag === 'pre' && node.className.trim() !== 'CodeMirror-line') {
                 node.style.setProperty('border', '1px solid #000', 'important')
