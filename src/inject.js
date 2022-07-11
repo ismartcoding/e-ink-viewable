@@ -10,6 +10,11 @@ function getBrightness(color) {
 }
 
 function isDark(color) {
+    const alpha = parseFloat(color.split(',')[3])
+    if (!isNaN(alpha) && alpha < 0.5) {
+        return false
+    }
+
     return getBrightness(color) < 128
 }
 
