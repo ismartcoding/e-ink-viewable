@@ -1,6 +1,6 @@
 # E-ink Viewable
 
-A chrome extension to make all websites viewable in e-ink screen, convert black-white theme to white-black automatically.
+A chrome extension to make all websites viewable in e-ink screen, convert dark theme to light theme automatically.
 
 ## Install from Chrome Web Store
 
