@@ -10,11 +10,6 @@ function getBrightness(color) {
 }
 
 function isDark(color) {
-    const alpha = parseFloat(color.split(',')[3])
-    if (!isNaN(alpha) && alpha < 0.5) {
-        return false
-    }
-
     return getBrightness(color) < 128
 }
 
@@ -53,7 +48,10 @@ function updateStyle(node) {
 
     const backgroundColor = style.backgroundColor
     if (backgroundColor && backgroundColor !== 'transparent' && backgroundColor !== 'rgb(255, 255, 255)' && backgroundColor !== 'rgba(0, 0, 0, 0)') {
-        if (node.textContent.trim() || tag === 'input' || isDark(backgroundColor)) { // has text content
+        const alpha = parseFloat(backgroundColor.split(',')[3])
+        if (!isNaN(alpha) && alpha < 0.5) {
+            // ignore this
+        } else if (node.textContent.trim() || tag === 'input' || isDark(backgroundColor)) { // has text content
             node.style.setProperty('background-color', '#fff', 'important')
             // add border for code block
             if (tag === 'pre' && node.className.trim() !== 'CodeMirror-line') {
