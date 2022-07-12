@@ -7,3 +7,9 @@ button {
     white-space: nowrap;
     cursor: pointer;
 }
+
+#shortcuts {
+    text-align: center;
+    margin: 0 16px 16px 16px;
+    display: block;
+}

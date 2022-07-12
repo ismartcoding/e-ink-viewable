@@ -1,7 +1,7 @@
 {
   "name": "E-ink Viewable",
   "description": "Make all websites viewable in e-ink screen, convert dark theme to light theme automatically.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "manifest_version": 3,
   "icons": {
     "48": "icons/icon_48.png",
@@ -10,6 +10,17 @@
   "action": {
     "default_title": "E-ink Viewable",
     "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "toggle-ink-style": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K"
+      },
+      "description": "Toggle ink style"
+    }
   },
   "content_scripts": [
     {

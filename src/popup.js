@@ -32,3 +32,7 @@ chrome.tabs.query(
             })
         })
     })
+
+$('#shortcuts').click(() => chrome.tabs.create({
+    url: 'chrome://extensions/shortcuts'
+}))
