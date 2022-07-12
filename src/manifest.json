@@ -17,7 +17,7 @@
   "commands": {
     "toggle-ink-style": {
       "suggested_key": {
-        "default": "Ctrl+Shift+K"
+        "default": "Ctrl+Shift+X"
       },
       "description": "Toggle ink style"
     }
