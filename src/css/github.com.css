@@ -17,6 +17,7 @@ body {
   --color-border-muted: #000 !important;
   --color-btn-primary-text: #000 !important;
   --color-fg-on-emphasis: #000 !important;
+  --color-btn-primary-bg: #fff !important;
 }
 .Box,
 .Header,
