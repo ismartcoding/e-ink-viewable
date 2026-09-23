@@ -3,7 +3,7 @@ button {
     padding: 8px 16px;
     background: #fff;
     border-radius: 4px;
-    margin: 16px;
+    margin: 16px 16px 0 16px;
     white-space: nowrap;
     min-width: 180px;
     cursor: pointer;
@@ -16,6 +16,6 @@ button:disabled {
 
 #shortcuts {
     text-align: center;
-    margin: 0 16px 16px 16px;
+    margin: 16px;
     display: block;
 }

@@ -129,6 +129,28 @@
         }
     }
 
+    // :hover and :focus rules only enter computed style while active, so the
+    // load-time pass never saw them — a:hover { background-color: #000 } is
+    // the classic offender. Re-plan the entered element and its ancestors:
+    // the browser applies hover styling before dispatching, so computed
+    // styles already show the dark background and the inline !important
+    // write then wins over the stylesheet rule for good.
+    function applyPointerTarget(target) {
+        const chain = []
+        for (let el = target; el && el.nodeType === 1 && chain.length < 32; el = el.parentElement) {
+            if (!skip(el)) chain.push(el)
+        }
+        const plans = []
+        for (const el of chain) {
+            plans.push([el, planFor(el, getComputedStyle(el))])
+        }
+        for (const [el, writes] of plans) {
+            for (const [prop, value] of writes) {
+                el.style.setProperty(prop, value, 'important')
+            }
+        }
+    }
+
     // Color-only stylesheet: native widgets/scrollbars follow a light scheme,
     // selection and scrollbars stay readable on e-ink. Nothing here changes
     // layout or size.
@@ -160,6 +182,9 @@
                     }
                 }
             }).observe(document.documentElement, { childList: true, subtree: true })
+
+            document.addEventListener('mouseover', event => applyPointerTarget(event.target), true)
+            document.addEventListener('focusin', event => applyPointerTarget(event.target), true)
         }
 
         // Stylesheets block DOMContentLoaded, so all page CSS is final here
@@ -172,8 +197,9 @@
     }
 
     const key = 'i:' + window.location.host
-    chrome.storage.local.get(key, items => {
-        if (!items[key]) start()
+    chrome.storage.local.get(['p:all', key], items => {
+        // p:all pauses every site, i:<host> pauses this one; anything set means off.
+        if (!items['p:all'] && !items[key]) start()
     })
 
     chrome.runtime.onMessage.addListener(request => {
