@@ -249,9 +249,28 @@ function hasDarkGradient(backgroundImage) {
 function backgroundKind(backgroundColor, backgroundImage) {
     const image = String(backgroundImage || '')
     if (image.includes('url(')) return 'image'
+    return backgroundShade(backgroundColor)
+}
+
+// The shade of a surface color — 'dark' | 'light' — or null when it paints
+// nothing (transparent or unparseable), so the caller falls through to the
+// next surface. Mode B uses this to decide whether a page needs inverting.
+function backgroundShade(backgroundColor) {
     const c = parseColor(backgroundColor)
-    if (c && c.a >= MIN_ALPHA) return brightness(c) < DARK ? 'dark' : 'light'
-    return null
+    if (!c || c.a < MIN_ALPHA) return null
+    return brightness(c) < DARK ? 'dark' : 'light'
+}
+
+// Average stop brightness of a gradient, or null. background-clip:text
+// elements paint their glyphs WITH the gradient — the caller uses this to
+// decide whether that paint needs flipping like a text color.
+function gradientAverageBrightness(backgroundImage) {
+    const text = String(backgroundImage || '')
+    if (!text || text === 'none' || text.includes('url(') || !text.includes('gradient')) return null
+    const tokens = text.match(COLOR_TOKEN_RE) || []
+    const colors = tokens.map(token => parseColor(token)).filter(Boolean)
+    if (!colors.length) return null
+    return colors.reduce((sum, c) => sum + brightness(c), 0) / colors.length
 }
 
 const EinkColor = {
@@ -262,7 +281,9 @@ const EinkColor = {
     newBorderColor,
     newFillColor,
     hasDarkGradient,
-    backgroundKind
+    backgroundKind,
+    backgroundShade,
+    gradientAverageBrightness
 }
 
 if (typeof module !== 'undefined' && module.exports) {

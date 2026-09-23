@@ -8,7 +8,7 @@ function createRecorder() {
         reads: () => log.filter(e => e[0] === 'read'),
         writes: () => log.filter(e => e[0] === 'write'),
         props: el => Object.fromEntries(log.filter(e => e[0] === 'write' && e[1] === el).map(e => [e[2], e[3]])),
-        // opts: { parent, contentEditable, ownerSvg }
+        // opts: { parent, contentEditable, ownerSvg, pseudo: {'::before': {...}, '::after': {...}} }
         el(tag, opts = {}) {
             const el = {
                 nodeType: 1,
@@ -20,18 +20,28 @@ function createRecorder() {
                     setProperty(prop, value) {
                         log.push(['write', el, prop, value])
                     }
+                },
+                attrs: {},
+                setAttribute(name, value) {
+                    el.attrs[name] = value
+                },
+                getAttribute(name) {
+                    return el.attrs[name] !== undefined ? el.attrs[name] : null
                 }
             }
+            if (opts.pseudo) el._pseudo = opts.pseudo
             return el
         }
     }
     return recorder
 }
 
-// Computed-style lookup table + recording wrapper for the engine's `styles` dep.
+// Computed-style lookup: element styles via the element, pseudo styles via
+// opts.pseudo. Every lookup is recorded so tests can assert read ordering.
 function createStyles(recorder, table) {
-    return el => {
-        recorder.log.push(['read', el])
+    return (el, pseudo) => {
+        recorder.log.push(['read', el, pseudo || ''])
+        if (pseudo) return (el._pseudo && el._pseudo[pseudo]) || {}
         return table.get(el) || {}
     }
 }

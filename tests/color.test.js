@@ -95,6 +95,16 @@ test('svg paint: white flips to currentColor, colored icons are kept', () => {
     assert.strictEqual(C.newFillColor('none'), null)
 })
 
+test('gradientAverageBrightness classifies gradient text paint', () => {
+    const light = C.gradientAverageBrightness('linear-gradient(rgb(255, 255, 255), rgb(255, 214, 236))')
+    assert.ok(light > 200, 'light gradient avg > 200, got ' + light)
+    const dark = C.gradientAverageBrightness('linear-gradient(rgb(64, 66, 71), rgb(29, 30, 32))')
+    assert.ok(dark < 128, 'dark gradient avg < 128, got ' + dark)
+    assert.equal(C.gradientAverageBrightness('url("paint.png")'), null)
+    assert.equal(C.gradientAverageBrightness('none'), null)
+    assert.equal(C.gradientAverageBrightness(''), null)
+})
+
 test('background kind: image wins, opaque colors classify, transparent inherits', () => {
     assert.strictEqual(C.backgroundKind('rgba(0, 0, 0, 0)', 'url("banner.jpg")'), 'image')
     assert.strictEqual(C.backgroundKind('rgba(0, 0, 0, 0)', 'linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("banner.jpg")'), 'image')
@@ -102,4 +112,13 @@ test('background kind: image wins, opaque colors classify, transparent inherits'
     assert.strictEqual(C.backgroundKind('rgb(239, 239, 239)', 'none'), 'light')
     assert.strictEqual(C.backgroundKind('rgba(0, 0, 0, 0)', 'none'), null)
     assert.strictEqual(C.backgroundKind('rgba(13, 17, 23, 0.3)', 'none'), null)     // faint overlay inherits
+})
+
+test('backgroundShade: dark and light surfaces, transparent and junk are null', () => {
+    assert.equal(C.backgroundShade('rgb(13, 17, 23)'), 'dark')
+    assert.equal(C.backgroundShade('rgba(0, 0, 0, 0.85)'), 'dark')
+    assert.equal(C.backgroundShade('rgb(249, 249, 250)'), 'light')
+    assert.equal(C.backgroundShade('rgba(255, 255, 255, 0.4)'), null) // too transparent to count
+    assert.equal(C.backgroundShade('none'), null)
+    assert.equal(C.backgroundShade(''), null)
 })

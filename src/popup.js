@@ -11,8 +11,12 @@ const ui = PopupUi.createPopupUi({
     sendMessage: (tabId, message) => chrome.tabs.sendMessage(tabId, message),
     openPage: url => chrome.tabs.create({ url }),
     el: {
-        toggle: document.getElementById('toggle'),
-        toggleAll: document.getElementById('toggleAll'),
+        siteModeButtons: [...document.querySelectorAll('#site-modes button')],
+        defaultModeButtons: [...document.querySelectorAll('#default-modes button')],
+        settings: document.getElementById('settings'),
+        settingsPanel: document.getElementById('settings-panel'),
+        help: document.getElementById('help'),
+        helpPanel: document.getElementById('help-panel'),
         shortcuts: document.getElementById('shortcuts')
     }
 })

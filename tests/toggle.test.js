@@ -10,7 +10,8 @@ function fakeStorage(local = {}, sync = {}) {
                 if (Array.isArray(key)) return Object.fromEntries(key.filter(k => k in local).map(k => [k, local[k]]))
                 return key in local ? { [key]: local[key] } : {}
             },
-            async set(items) { Object.assign(local, items) }
+            async set(items) { Object.assign(local, items) },
+            async remove(keys) { for (const k of [].concat(keys)) delete local[k] }
         },
         sync: {
             async get(key) {
@@ -22,7 +23,7 @@ function fakeStorage(local = {}, sync = {}) {
     }
 }
 
-test('siteKey derives the per-site flag from any URL of the host', () => {
+test('siteKey derives the per-site key from any URL of the host', () => {
     assert.equal(Toggle.siteKey('https://github.com/foo/bar'), 'i:github.com')
     assert.equal(Toggle.siteKey('http://a.example.com:8080/x?y=1'), 'i:a.example.com:8080') // host keeps the port
 })
@@ -35,78 +36,152 @@ test('isWebUrl accepts only http(s)', () => {
     assert.equal(Toggle.isWebUrl(undefined), false)
 })
 
-test('toggle flips undefined → paused and paused → applied', async () => {
+test('getSiteMode: absent everywhere → auto, default → default, override wins', async () => {
     const storage = fakeStorage()
     const service = Toggle.createToggleService({ storage })
 
-    assert.deepEqual(await service.toggle('https://a.com/x'), { paused: true })
-    assert.equal(storage.localData['i:a.com'], 1)
+    assert.equal(await service.getSiteMode('https://a.com/x'), 'auto')
 
-    assert.deepEqual(await service.toggle('https://a.com/x'), { paused: false })
-    assert.equal(storage.localData['i:a.com'], 0)
+    await service.setDefaultMode('contrast')
+    assert.equal(await service.getSiteMode('https://a.com/x'), 'contrast')
 
-    assert.deepEqual(await service.toggle('https://a.com/x'), { paused: true })
+    await service.setSiteMode('https://a.com/x', 'off') // override beats a non-off default
+    assert.equal(await service.getSiteMode('https://a.com/x'), 'off')
+    // another host without an override still follows the default
+    assert.equal(await service.getSiteMode('https://b.com'), 'contrast')
 })
 
-test('toggle on a non-web page is a no-op', async () => {
+test('getSiteMode on a non-web page is null', async () => {
+    const service = Toggle.createToggleService({ storage: fakeStorage() })
+    assert.equal(await service.getSiteMode('chrome://version'), null)
+})
+
+test('setSiteMode stores the override and remembers non-off modes for the shortcut', async () => {
     const storage = fakeStorage()
     const service = Toggle.createToggleService({ storage })
 
-    assert.equal(await service.toggle('chrome://extensions/shortcuts'), null)
+    assert.equal(await service.setSiteMode('https://a.com/x', 'contrast'), 'contrast')
+    assert.equal(storage.localData['i:a.com'], 'contrast')
+    assert.equal(storage.localData['l:a.com'], 'contrast')
+
+    assert.equal(await service.setSiteMode('https://a.com/x', 'off'), 'off')
+    assert.equal(storage.localData['i:a.com'], 'off')
+    assert.equal(storage.localData['l:a.com'], 'contrast') // last non-off kept
+})
+
+test('setSiteMode rejects junk modes and non-web pages, storing nothing', async () => {
+    const storage = fakeStorage()
+    const service = Toggle.createToggleService({ storage })
+
+    assert.equal(await service.setSiteMode('https://a.com', 'dark'), null)
+    assert.equal(await service.setSiteMode('chrome://version', 'auto'), null)
     assert.deepEqual(storage.localData, {})
 })
 
-test('getState: boolean for web pages, null elsewhere', async () => {
-    const storage = fakeStorage({ 'i:paused.com': 1 })
-    const service = Toggle.createToggleService({ storage })
-
-    assert.equal(await service.getState('https://paused.com/x'), true)
-    assert.equal(await service.getState('https://other.com'), false)
-    assert.equal(await service.getState('chrome://version'), null)
-})
-
-test('getGlobal / setGlobal drive the pause-everywhere flag', async () => {
+test('getDefaultMode / setDefaultMode round-trip', async () => {
     const storage = fakeStorage()
     const service = Toggle.createToggleService({ storage })
 
-    assert.equal(await service.getGlobal(), false)
-    await service.setGlobal(true)
-    assert.equal(storage.localData['p:all'], 1)
-    assert.equal(await service.getGlobal(), true)
-    await service.setGlobal(false)
-    assert.equal(await service.getGlobal(), false)
+    assert.equal(await service.getDefaultMode(), 'auto')
+    await service.setDefaultMode('off')
+    assert.equal(await service.getDefaultMode(), 'off')
+    assert.equal(await service.setDefaultMode('nonsense'), null)
+    assert.equal(await service.getDefaultMode(), 'off')
 })
 
-test('per-site pause and global pause are independent flags', async () => {
+test('toggleShortcut turns a running mode off', async () => {
     const storage = fakeStorage()
     const service = Toggle.createToggleService({ storage })
-    await service.toggle('https://a.com')
-    await service.setGlobal(true)
+    await service.setSiteMode('https://a.com/x', 'contrast')
 
-    assert.equal(await service.getState('https://a.com'), true)
-    assert.equal(await service.getGlobal(), true)
+    assert.equal(await service.toggleShortcut('https://a.com/x'), 'off')
+    assert.equal(await service.getSiteMode('https://a.com/x'), 'off')
 })
 
-test('migrateSync copies old per-site keys from sync, nothing else', async () => {
-    const storage = fakeStorage({}, {
-        'i:old.com': 1,
-        'unrelated': 'x'
+test('toggleShortcut restores the site\'s last mode', async () => {
+    const storage = fakeStorage()
+    const service = Toggle.createToggleService({ storage })
+    await service.setSiteMode('https://a.com/x', 'contrast')
+    await service.toggleShortcut('https://a.com/x')
+
+    assert.equal(await service.toggleShortcut('https://a.com/x'), 'contrast')
+    assert.equal(await service.getSiteMode('https://a.com/x'), 'contrast')
+})
+
+test('toggleShortcut without a last mode falls back to the default, then auto', async () => {
+    const storage = fakeStorage()
+    const service = Toggle.createToggleService({ storage })
+
+    // never set: default is auto
+    assert.equal(await service.toggleShortcut('https://a.com/x'), 'off')
+    assert.equal(await service.toggleShortcut('https://a.com/x'), 'auto')
+
+    // a contrast default is restorable; an off default is not — auto wins
+    const other = fakeStorage()
+    const service2 = Toggle.createToggleService({ storage: other })
+    await service2.setDefaultMode('contrast')
+    assert.equal(await service2.toggleShortcut('https://a.com/x'), 'off')
+    assert.equal(await service2.toggleShortcut('https://a.com/x'), 'contrast')
+
+    const third = fakeStorage()
+    const service3 = Toggle.createToggleService({ storage: third })
+    await service3.setDefaultMode('off')
+    // an off default already reads as off, so the first flip restores 'auto'
+    assert.equal(await service3.toggleShortcut('https://a.com/x'), 'auto')
+    assert.equal(await service3.toggleShortcut('https://a.com/x'), 'off')
+})
+
+test('toggleShortcut on a non-web page is a no-op', async () => {
+    const storage = fakeStorage()
+    const service = Toggle.createToggleService({ storage })
+    assert.equal(await service.toggleShortcut('chrome://version'), null)
+    assert.deepEqual(storage.localData, {})
+})
+
+test('migrateLegacy carries old per-site pause flags into the mode model', async () => {
+    const storage = fakeStorage({
+        'i:local.com': 1,
+        'i:light.com': 0
+    }, {
+        'i:sync.com': 1
     })
     const service = Toggle.createToggleService({ storage })
 
-    assert.equal(await service.migrateSync(), 1)
-    assert.equal(storage.localData['i:old.com'], 1)
-    assert.equal(storage.localData['unrelated'], undefined)
+    assert.equal(await service.migrateLegacy(), 3)
+    assert.equal(storage.localData['i:local.com'], 'off')   // paused site stays off
+    assert.equal(storage.localData['i:light.com'], undefined) // 0 meant on → follow default
+    assert.equal(storage.localData['i:sync.com'], 'off')
 
-    // re-running (every browser start) re-copies the same values — harmless
-    assert.equal(await service.migrateSync(), 1)
-    assert.equal(storage.localData['i:old.com'], 1)
+    assert.equal(await service.getSiteMode('https://local.com'), 'off')
+    assert.equal(await service.getSiteMode('https://light.com'), 'auto') // default untouched
 })
 
-test('migrateSync with an empty sync area writes nothing', async () => {
+test('migrateLegacy turns the old global pause into the default mode off', async () => {
+    const storage = fakeStorage({ 'p:all': 1, 'i:a.com': 0 })
+    const service = Toggle.createToggleService({ storage })
+
+    await service.migrateLegacy()
+    assert.equal(storage.localData['p:all'], undefined)
+    assert.equal(storage.localData['d:all'], 'off')
+    assert.equal(await service.getSiteMode('https://a.com'), 'off')
+    // a single site can still override the off default
+    await service.setSiteMode('https://a.com', 'contrast')
+    assert.equal(await service.getSiteMode('https://a.com'), 'contrast')
+})
+
+test('migrateLegacy with nothing to migrate writes nothing', async () => {
     const storage = fakeStorage()
     const service = Toggle.createToggleService({ storage })
 
-    assert.equal(await service.migrateSync(), 0)
+    assert.equal(await service.migrateLegacy(), 0)
     assert.deepEqual(storage.localData, {})
+})
+
+test('migrateLegacy keeps modern mode keys untouched', async () => {
+    const storage = fakeStorage({ 'i:a.com': 'contrast', 'd:all': 'auto' })
+    const service = Toggle.createToggleService({ storage })
+
+    await service.migrateLegacy()
+    assert.equal(storage.localData['i:a.com'], 'contrast')
+    assert.equal(storage.localData['d:all'], 'auto')
 })

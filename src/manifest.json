@@ -1,7 +1,7 @@
 {
   "name": "E-ink Viewable",
   "description": "Make all websites viewable in e-ink screen, convert dark theme to light theme automatically.",
-  "version": "1.2.0",
+  "version": "1.4.6",
   "manifest_version": 3,
   "icons": {
     "16": "icons/icon_16.png",
@@ -37,6 +37,7 @@
       "js": [
         "color.js",
         "engine.js",
+        "toggle.js",
         "inject.js"
       ],
       "run_at": "document_start",

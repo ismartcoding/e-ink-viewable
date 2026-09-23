@@ -1,22 +1,58 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8" />
-    <title>Ink View</title>
+    <title>E-ink Viewable</title>
     <link rel="stylesheet" href="css/popup.css" />
 </head>
 
 <body>
-    <div id="app">
-        <button type="button" id="toggle">
+    <header class="head">
+        <img src="icons/icon_32.png" alt="" width="20" height="20" />
+        <h1>墨水屏网页助手</h1>
+        <button type="button" id="settings" class="icon-btn" aria-label="设置" title="设置">
+            <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
         </button>
-        <button type="button" id="toggleAll">
-        </button>
-        <a href="#" id="shortcuts">Configure shortcuts</a>
-    </div>
+        <button type="button" id="help" class="icon-btn" aria-label="帮助" title="帮助">?</button>
+    </header>
+
+    <main>
+        <section class="group">
+            <p class="group-label">这个网站显示为</p>
+            <div class="seg" id="site-modes">
+                <button type="button" data-mode="auto">舒适</button>
+                <button type="button" data-mode="contrast">强对比</button>
+                <button type="button" data-mode="off">关闭</button>
+            </div>
+        </section>
+
+        <section class="help-panel" id="settings-panel" hidden>
+            <p class="panel-title">其他网站的默认模式</p>
+            <div class="seg" id="default-modes">
+                <button type="button" data-mode="auto">舒适</button>
+                <button type="button" data-mode="contrast">强对比</button>
+                <button type="button" data-mode="off">关闭</button>
+            </div>
+            <p class="panel-hint">没有单独设置过的网站都按这个来</p>
+        </section>
+
+        <section class="help-panel" id="help-panel" hidden>
+            <p><b>舒适</b>：自动把深色调成浅色，尽量保持网站原貌。</p>
+            <p><b>强对比</b>：黑白模式，白底黑字。舒适显示不对时用它。</p>
+            <p><b>关闭</b>：这个网站恢复原样。</p>
+            <p><b>默认模式</b>：在设置（齿轮）里改，对所有没单独设置的网站生效。</p>
+        </section>
+    </main>
+
+    <footer class="foot">
+        <a href="#" id="shortcuts">快捷键设置</a>
+        <a class="promo" href="https://github.com/plainhub/plain-desktop" target="_blank" rel="noreferrer">作者的开源应用 PlainApp · 用浏览器管理手机</a>
+    </footer>
+
     <script src="toggle.js"></script>
     <script src="popup-ui.js"></script>
     <script src="popup.js"></script>
 </body>
+
 </html>

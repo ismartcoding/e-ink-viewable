@@ -12,6 +12,7 @@ function setup({ local = {}, activeUrl = 'https://a.com/page' } = {}) {
             local: {
                 async get(key) {
                     if (key === null) return { ...localData }
+                    if (Array.isArray(key)) return Object.fromEntries(key.filter(k => k in localData).map(k => [k, localData[k]]))
                     return key in localData ? { [key]: localData[key] } : {}
                 },
                 async set(items) { Object.assign(localData, items) }
@@ -20,14 +21,35 @@ function setup({ local = {}, activeUrl = 'https://a.com/page' } = {}) {
     })
 
     const clicks = {}
-    const makeButton = name => ({
-        textContent: '',
-        disabled: undefined,
-        addEventListener: (type, handler) => { clicks[name] = handler }
-    })
+    const cap = s => s[0].toUpperCase() + s.slice(1)
+    const makeButton = name => {
+        const button = {
+            dataset: {},
+            disabled: false,
+            textContent: '',
+            classes: new Set(),
+            classList: {
+                toggle: (cls, on) => { on ? button.classes.add(cls) : button.classes.delete(cls) }
+            },
+            addEventListener: (type, handler) => { clicks[name] = handler }
+        }
+        return button
+    }
     const el = {
-        toggle: makeButton('toggle'),
-        toggleAll: makeButton('toggleAll'),
+        siteModeButtons: ['auto', 'contrast', 'off'].map(mode => {
+            const button = makeButton('seg' + cap(mode))
+            button.dataset.mode = mode
+            return button
+        }),
+        defaultModeButtons: ['auto', 'contrast', 'off'].map(mode => {
+            const button = makeButton('default' + cap(mode))
+            button.dataset.mode = mode
+            return button
+        }),
+        settings: makeButton('settings'),
+        settingsPanel: { hidden: true },
+        help: makeButton('help'),
+        helpPanel: { hidden: true },
         shortcuts: makeButton('shortcuts')
     }
 
@@ -45,92 +67,84 @@ function setup({ local = {}, activeUrl = 'https://a.com/page' } = {}) {
     return { localData, el, clicks, sent, opened, ui, service }
 }
 
-async function click(button) {
-    await button.clicks.toggle && button.clicks.toggle()
-}
+const selected = button => button.classes.has('selected')
 
-test('init: style applied on a light-state site', async () => {
+test('init: auto is selected everywhere, panels closed', async () => {
     const { el, ui } = setup()
     await ui.init()
-    assert.equal(el.toggle.textContent, 'Remove ink style')
-    assert.equal(el.toggle.disabled, false)
-    assert.equal(el.toggleAll.textContent, 'Pause on all sites')
+
+    assert.equal(selected(el.siteModeButtons[0]), true)
+    assert.equal(selected(el.defaultModeButtons[0]), true)
+    assert.equal(el.siteModeButtons.every(b => !b.disabled), true)
+    assert.equal(el.settingsPanel.hidden, true)
+    assert.equal(el.helpPanel.hidden, true)
 })
 
-test('init: paused site offers to apply the style again', async () => {
-    const { el, ui } = setup({ local: { 'i:a.com': 1 } })
+test('init: a per-site override selects its segment, default visible in settings', async () => {
+    const { el, ui } = setup({ local: { 'i:a.com': 'contrast', 'd:all': 'off' } })
     await ui.init()
-    assert.equal(el.toggle.textContent, 'Apply ink style')
-    assert.equal(el.toggle.disabled, false)
+
+    assert.equal(selected(el.siteModeButtons[1]), true)   // site override: 强对比
+    assert.equal(selected(el.defaultModeButtons[2]), true) // default: 关闭
 })
 
-test('init: non-web page disables the per-site button', async () => {
+test('init: non-web page disables the site segments', async () => {
     const { el, ui } = setup({ activeUrl: 'chrome://version' })
     await ui.init()
-    assert.equal(el.toggle.textContent, 'Not available on this page')
-    assert.equal(el.toggle.disabled, true)
-    // global pause still makes sense on any page
-    assert.equal(el.toggleAll.disabled, undefined)
-    assert.equal(el.toggleAll.textContent, 'Pause on all sites')
+
+    assert.equal(el.siteModeButtons.every(b => b.disabled), true)
+    assert.equal(selected(el.defaultModeButtons[0]), true) // default still usable
 })
 
-test('init: global pause resumes everywhere and disables the site button', async () => {
-    const { el, ui } = setup({ local: { 'p:all': 1, 'i:a.com': 1 } })
-    await ui.init()
-    assert.equal(el.toggleAll.textContent, 'Resume on all sites')
-    assert.equal(el.toggle.disabled, true)
-    assert.equal(el.toggle.textContent, 'Apply ink style') // site state kept visible
-})
-
-test('clicking the site button pauses the site and reloads the tab', async () => {
+test('clicking 强对比 stores it on this site and reloads the tab', async () => {
     const { el, clicks, localData, sent, ui } = setup()
     await ui.init()
-    await clicks.toggle()
+    await clicks.segContrast()
 
-    assert.equal(localData['i:a.com'], 1)
-    assert.equal(el.toggle.textContent, 'Apply ink style')
+    assert.equal(localData['i:a.com'], 'contrast')
+    assert.equal(selected(el.siteModeButtons[1]), true)
     assert.deepEqual(sent, [[7, 'reload']])
 })
 
-test('clicking the site button again applies the style again', async () => {
-    const { el, clicks, localData, sent, ui } = setup({ local: { 'i:a.com': 1 } })
+test('the settings button toggles the settings panel', async () => {
+    const { el, clicks, ui } = setup()
     await ui.init()
-    await clicks.toggle()
 
-    assert.equal(localData['i:a.com'], 0)
-    assert.equal(el.toggle.textContent, 'Remove ink style')
-    assert.deepEqual(sent, [[7, 'reload']])
+    await clicks.settings()
+    assert.equal(el.settingsPanel.hidden, false)
+    await clicks.settings()
+    assert.equal(el.settingsPanel.hidden, true)
 })
 
-test('clicking the global button pauses all sites and reloads', async () => {
+test('opening one panel closes the other', async () => {
+    const { el, clicks, ui } = setup()
+    await ui.init()
+
+    await clicks.settings()
+    await clicks.help()
+    assert.equal(el.settingsPanel.hidden, true)
+    assert.equal(el.helpPanel.hidden, false)
+})
+
+test('clicking a default mode stores it and reloads the tab', async () => {
     const { el, clicks, localData, sent, ui } = setup()
     await ui.init()
-    await clicks.toggleAll()
+    await clicks.settings()
+    await clicks.defaultContrast()
 
-    assert.equal(localData['p:all'], 1)
-    assert.equal(el.toggleAll.textContent, 'Resume on all sites')
-    assert.equal(el.toggle.disabled, true)
+    assert.equal(localData['d:all'], 'contrast')
+    assert.equal(selected(el.defaultModeButtons[1]), true)
     assert.deepEqual(sent, [[7, 'reload']])
 })
 
-test('clicking the global button again resumes everywhere', async () => {
-    const { el, clicks, localData, ui } = setup({ local: { 'p:all': 1 } })
+test('the help button toggles the help panel', async () => {
+    const { el, clicks, ui } = setup()
     await ui.init()
-    await clicks.toggleAll()
 
-    assert.equal(localData['p:all'], 0)
-    assert.equal(el.toggleAll.textContent, 'Pause on all sites')
-    assert.equal(el.toggle.disabled, false)
-})
-
-test('global toggle works on a non-web page too (reload failure is swallowed)', async () => {
-    const { el, clicks, localData, sent, ui } = setup({ activeUrl: null })
-    await ui.init()
-    await clicks.toggleAll()
-
-    assert.equal(localData['p:all'], 1)
-    assert.equal(el.toggleAll.textContent, 'Resume on all sites')
-    assert.deepEqual(sent, []) // no tab → no message, no crash
+    await clicks.help()
+    assert.equal(el.helpPanel.hidden, false)
+    await clicks.help()
+    assert.equal(el.helpPanel.hidden, true)
 })
 
 test('shortcuts link opens the Chrome shortcuts page', async () => {

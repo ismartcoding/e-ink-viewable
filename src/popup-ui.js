@@ -1,29 +1,24 @@
-// Popup UI behavior: what each button shows in every state and what a click
-// does. The DOM elements, the toggle service and the tab access are injected,
-// so tests drive it on fake elements (tests/popup-ui.test.js); popup.js is
-// only the chrome.* wiring.
+// Popup UI behavior: which mode is selected in every state, what each click
+// does, and when the settings/help panels show. The DOM elements, the mode
+// service and the tab access are injected, so tests drive it on fake
+// elements (tests/popup-ui.test.js); popup.js is only the chrome.* wiring.
 
-// siteState: true = this site paused, false = style applied, null = not a
-// web page. globalPaused = 'p:all' set — the extension is off everywhere.
 function createPopupUi({ service, getActiveTab, sendMessage, openPage, el }) {
-    let siteState
-    let globalPaused = false
+    let siteMode = null // 'auto' | 'contrast' | 'off'; null = not a web page
+    let defaultMode = 'auto'
+    let settingsOpen = false
+    let helpOpen = false
 
     function render() {
-        if (globalPaused) {
-            el.toggleAll.textContent = 'Resume on all sites'
-            el.toggle.disabled = true
-            el.toggle.textContent = siteState == null ? 'Not available on this page' : 'Apply ink style'
-            return
+        for (const button of el.siteModeButtons) {
+            button.classList.toggle('selected', siteMode !== null && button.dataset.mode === siteMode)
+            button.disabled = siteMode === null
         }
-        el.toggleAll.textContent = 'Pause on all sites'
-        if (siteState == null) {
-            el.toggle.textContent = 'Not available on this page'
-            el.toggle.disabled = true
-            return
+        for (const button of el.defaultModeButtons) {
+            button.classList.toggle('selected', button.dataset.mode === defaultMode)
         }
-        el.toggle.textContent = siteState ? 'Apply ink style' : 'Remove ink style'
-        el.toggle.disabled = false
+        el.settingsPanel.hidden = !settingsOpen
+        el.helpPanel.hidden = !helpOpen
     }
 
     // The active tab reloads so the change is visible right away; other tabs
@@ -35,34 +30,52 @@ function createPopupUi({ service, getActiveTab, sendMessage, openPage, el }) {
         Promise.resolve(sendMessage(tab.id, 'reload')).catch(() => {})
     }
 
-    async function init() {
-        globalPaused = await service.getGlobal()
-        const tab = await getActiveTab()
-        siteState = tab ? await service.getState(tab.url) : null
-        render()
+    for (const button of el.siteModeButtons) {
+        button.addEventListener('click', async () => {
+            const tab = await getActiveTab()
+            const mode = await service.setSiteMode(tab && tab.url, button.dataset.mode)
+            if (!mode) return
+            siteMode = mode
+            render()
+            reloadActiveTab()
+        })
     }
 
-    el.toggle.addEventListener('click', async () => {
-        const tab = await getActiveTab()
-        const result = tab ? await service.toggle(tab.url) : null
-        if (result) {
-            siteState = result.paused
+    for (const button of el.defaultModeButtons) {
+        button.addEventListener('click', async () => {
+            const mode = await service.setDefaultMode(button.dataset.mode)
+            if (!mode) return
+            defaultMode = mode
+            render()
+            // Sites without their own override follow the default, so the
+            // current tab always re-applies here.
             reloadActiveTab()
-        }
+        })
+    }
+
+    el.settings.addEventListener('click', () => {
+        settingsOpen = !settingsOpen
+        settingsOpen && (helpOpen = false) // one panel at a time
         render()
     })
 
-    el.toggleAll.addEventListener('click', async () => {
-        globalPaused = !globalPaused
-        await service.setGlobal(globalPaused)
+    el.help.addEventListener('click', () => {
+        helpOpen = !helpOpen
+        helpOpen && (settingsOpen = false)
         render()
-        reloadActiveTab()
     })
 
     el.shortcuts.addEventListener('click', event => {
         event.preventDefault()
         openPage('chrome://extensions/shortcuts')
     })
+
+    async function init() {
+        const tab = await getActiveTab()
+        siteMode = tab ? await service.getSiteMode(tab.url) : null
+        defaultMode = await service.getDefaultMode()
+        render()
+    }
 
     return { init }
 }
