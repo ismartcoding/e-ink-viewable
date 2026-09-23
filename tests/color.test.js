@@ -94,3 +94,12 @@ test('svg paint: white flips to currentColor, colored icons are kept', () => {
     assert.strictEqual(C.newFillColor('rgb(218, 54, 51)'), null)                    // red icon kept
     assert.strictEqual(C.newFillColor('none'), null)
 })
+
+test('background kind: image wins, opaque colors classify, transparent inherits', () => {
+    assert.strictEqual(C.backgroundKind('rgba(0, 0, 0, 0)', 'url("banner.jpg")'), 'image')
+    assert.strictEqual(C.backgroundKind('rgba(0, 0, 0, 0)', 'linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("banner.jpg")'), 'image')
+    assert.strictEqual(C.backgroundKind('rgb(13, 17, 23)', 'none'), 'dark')
+    assert.strictEqual(C.backgroundKind('rgb(239, 239, 239)', 'none'), 'light')
+    assert.strictEqual(C.backgroundKind('rgba(0, 0, 0, 0)', 'none'), null)
+    assert.strictEqual(C.backgroundKind('rgba(13, 17, 23, 0.3)', 'none'), null)     // faint overlay inherits
+})

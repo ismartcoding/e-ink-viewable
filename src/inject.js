@@ -39,6 +39,7 @@
 
     const seen = new WeakSet()
     const queue = new Set()
+    const bgKind = new WeakMap() // element → 'image' | 'dark' | 'light' | null
     let scheduled = false
 
     function skip(el) {
@@ -49,16 +50,34 @@
         return false
     }
 
+    // Own background first; transparent falls through to the nearest
+    // processed ancestor (parents are always processed before their children:
+    // document order in the load pass, explicit order in the hover pass).
+    function resolveKind(el, cs) {
+        const own = C.backgroundKind(cs.backgroundColor, cs.backgroundImage)
+        if (own) return own
+        for (let p = el.parentElement; p; p = p.parentElement) {
+            const kind = bgKind.get(p)
+            if (kind !== undefined) return kind
+        }
+        return null
+    }
+
     // Read phase: pure computed-style reads → list of [property, value] writes.
-    function planFor(el, cs) {
+    // Over a photo (banner image, gradient-over-image) the site's colors were
+    // chosen against that image, so only opaque dark backgrounds are flipped
+    // and text/borders/svg keep the page's color.
+    function planFor(el, cs, onImage) {
         const tag = el.tagName.toLowerCase()
 
         if (el.ownerSVGElement || tag === 'svg') {
             const writes = []
-            const fill = C.newFillColor(cs.fill)
-            if (fill) writes.push(['fill', fill])
-            const stroke = C.newFillColor(cs.stroke)
-            if (stroke) writes.push(['stroke', stroke])
+            if (!onImage) {
+                const fill = C.newFillColor(cs.fill)
+                if (fill) writes.push(['fill', fill])
+                const stroke = C.newFillColor(cs.stroke)
+                if (stroke) writes.push(['stroke', stroke])
+            }
             return writes
         }
 
@@ -72,17 +91,16 @@
             if (!bg) writes.push(['background-color', '#fff'])
         }
 
-        if (!NO_TEXT_TAGS.has(tag)) {
+        if (!onImage && !NO_TEXT_TAGS.has(tag)) {
             const color = C.newTextColor(cs.color)
             if (color) writes.push(['color', color])
             if (tag === 'input' || tag === 'textarea' || el.isContentEditable) {
                 const caret = C.newTextColor(cs.caretColor)
                 if (caret) writes.push(['caret-color', caret])
             }
+            const border = C.newBorderColor(cs.borderColor)
+            if (border) writes.push(['border-color', border])
         }
-
-        const border = C.newBorderColor(cs.borderColor)
-        if (border) writes.push(['border-color', border])
 
         return writes
     }
@@ -98,7 +116,10 @@
 
         const plans = []
         for (const el of batch) {
-            plans.push([el, planFor(el, getComputedStyle(el))])
+            const cs = getComputedStyle(el)
+            const kind = resolveKind(el, cs)
+            bgKind.set(el, kind)
+            plans.push([el, planFor(el, cs, kind === 'image')])
         }
         for (const [el, writes] of plans) {
             for (const [prop, value] of writes) {
@@ -141,8 +162,13 @@
             if (!skip(el)) chain.push(el)
         }
         const plans = []
-        for (const el of chain) {
-            plans.push([el, planFor(el, getComputedStyle(el))])
+        // Nearest ancestor first so kinds resolve top-down.
+        for (let i = chain.length - 1; i >= 0; i--) {
+            const el = chain[i]
+            const cs = getComputedStyle(el)
+            const kind = resolveKind(el, cs)
+            bgKind.set(el, kind)
+            plans[i] = [el, planFor(el, cs, kind === 'image')]
         }
         for (const [el, writes] of plans) {
             for (const [prop, value] of writes) {

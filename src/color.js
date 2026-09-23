@@ -241,6 +241,19 @@ function hasDarkGradient(backgroundImage) {
     })
 }
 
+// What an element effectively sits on, judging only its own background (the
+// caller walks up the parent chain for 'null'): a url() image — including the
+// classic dark gradient-over-photo banner — means the site designed its text
+// against that image, so the text must keep its color; an opaque color is
+// classified dark/light; transparent inherits.
+function backgroundKind(backgroundColor, backgroundImage) {
+    const image = String(backgroundImage || '')
+    if (image.includes('url(')) return 'image'
+    const c = parseColor(backgroundColor)
+    if (c && c.a >= MIN_ALPHA) return brightness(c) < DARK ? 'dark' : 'light'
+    return null
+}
+
 const EinkColor = {
     brightness,
     parseColor,
@@ -248,7 +261,8 @@ const EinkColor = {
     newTextColor,
     newBorderColor,
     newFillColor,
-    hasDarkGradient
+    hasDarkGradient,
+    backgroundKind
 }
 
 if (typeof module !== 'undefined' && module.exports) {
