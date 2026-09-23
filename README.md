@@ -20,6 +20,17 @@ https://chrome.google.com/webstore/detail/e-ink-viewable/lfeckmgmmnioloncabbkcdd
 2. Enable `Developer mode`.
 3. Click `Load unpacked` button and choose the `src` folder.
 
+## Architecture
+
+All decisions live in pure modules that never touch `chrome.*`, so every behavior is locked by unit tests running in plain Node:
+
+- `src/color.js` — color math: parsing every CSS color format and deciding which colors to flip.
+- `src/engine.js` — the conversion engine: skip rules, effective-background resolution, batching, mutation and hover handling. Computed styles and frame scheduling are injected; `inject.js` is its thin glue.
+- `src/toggle.js` — per-site and global pause state on top of injected storage.
+- `src/popup-ui.js` — every popup label and click behavior, on injected elements/service.
+
+`src/inject.js`, `src/background.js` and `src/popup.js` contain only `chrome.*` wiring.
+
 ## Development
 
 ```
