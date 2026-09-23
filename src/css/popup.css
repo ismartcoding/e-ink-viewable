@@ -5,7 +5,13 @@ button {
     border-radius: 4px;
     margin: 16px;
     white-space: nowrap;
+    min-width: 180px;
     cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: default;
 }
 
 #shortcuts {

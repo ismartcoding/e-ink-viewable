@@ -1,38 +1,22 @@
+const toggleBtn = document.getElementById('toggle')
 
-function updateUI(paused) {
-    $('#toggle').text(paused ? 'Apply ink style' : 'Remove ink style')
+function render(paused) {
+    if (paused === null || paused === undefined) {
+        toggleBtn.textContent = 'Not available on this page'
+        toggleBtn.disabled = true
+        return
+    }
+    toggleBtn.textContent = paused ? 'Apply ink style' : 'Remove ink style'
+    toggleBtn.disabled = false
 }
-chrome.tabs.query(
-    {
-        active: true,
-        currentWindow: true
-    },
-    function (tabs) {
-        const tab = tabs[0]
-        const host = new URL(tab.url).host
-        const key = `i:${host}`
-        chrome.storage.sync.get([key], function (items) {
-            let paused = items[key]
-            updateUI(paused)
 
-            $('#toggle').on('click', function () {
-                const obj = {}
-                if (paused) {
-                    obj[key] = 0
-                } else {
-                    obj[key] = 1
-                }
-                chrome.storage.sync.set(obj)
-                paused = !paused
-                updateUI(paused)
+toggleBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage('toggle', render)
+})
 
-                chrome.tabs.sendMessage(
-                    tab.id, 'reload'
-                )
-            })
-        })
-    })
+document.getElementById('shortcuts').addEventListener('click', event => {
+    event.preventDefault()
+    chrome.tabs.create({ url: 'chrome://extensions/shortcuts' })
+})
 
-$('#shortcuts').click(() => chrome.tabs.create({
-    url: 'chrome://extensions/shortcuts'
-}))
+chrome.runtime.sendMessage('getState', render)

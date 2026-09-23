@@ -1,108 +1,182 @@
+// E-ink Viewable content script.
+//
+// Runs at document_start. On a paused site it touches nothing at all — no
+// style element, no observer, no DOM walk. On an enabled site it rewrites
+// only the colors that were designed for a dark background (dark background
+// → white, near-white text/border/svg-fill → black) and leaves every other
+// color as the page chose it, so light pages are essentially untouched.
+//
+// Performance contract:
+// - computed styles are read in one phase and written in another (mixing the
+//   two forces a style recalc per element and janks the page),
+// - elements are processed in animation-frame batches, at most once each,
+// - the MutationObserver watches childList only — inline !important writes
+//   never trigger it, so there is no observer feedback loop.
 
-function parseRgbString(rgb) {
-    return rgb.replace(/[^\d,]/g, '').split(',')
-}
+(() => {
+    'use strict'
 
-//http://www.w3.org/TR/AERT#color-contrast
-function getBrightness(color) {
-    const c = parseRgbString(color)
-    return (c[0] * 299 + c[1] * 587 + c[2] * 114) / 1000
-}
+    const C = globalThis.EinkColor
 
-function isDark(color) {
-    return getBrightness(color) < 128
-}
+    const SKIP_TAGS = new Set([
+        'head', 'script', 'style', 'link', 'meta', 'title', 'base', 'noscript',
+        'template', 'br', 'wbr'
+    ])
 
-const ignoreTagNames = ['html', 'head', 'script', 'style', 'link', 'meta', 'title', 'img', 'video', 'audio']
+    // Elements that render their own pixels; text color is meaningless for them.
+    const NO_TEXT_TAGS = new Set([
+        'img', 'picture', 'source', 'video', 'audio', 'canvas', 'iframe',
+        'embed', 'object'
+    ])
 
-function ignoreTag(node) {
-    if (!node.tagName) {
-        return true
+    // Inside an <svg> only painted shapes matter; skip <defs>, filters, etc.
+    const SVG_SHAPES = new Set([
+        'svg', 'g', 'path', 'circle', 'rect', 'ellipse', 'line', 'polyline',
+        'polygon', 'text', 'tspan', 'use'
+    ])
+
+    const BATCH_SIZE = 300
+
+    const seen = new WeakSet()
+    const queue = new Set()
+    let scheduled = false
+
+    function skip(el) {
+        if (el.nodeType !== 1) return true
+        const tag = el.tagName.toLowerCase()
+        if (SKIP_TAGS.has(tag)) return true
+        if (el.ownerSVGElement && !SVG_SHAPES.has(tag)) return true
+        return false
     }
 
-    const tag = node.tagName.toLowerCase()
+    // Read phase: pure computed-style reads → list of [property, value] writes.
+    function planFor(el, cs) {
+        const tag = el.tagName.toLowerCase()
 
-    if (ignoreTagNames.includes(tag)) {
-        return true
-    }
+        if (el.ownerSVGElement || tag === 'svg') {
+            const writes = []
+            const fill = C.newFillColor(cs.fill)
+            if (fill) writes.push(['fill', fill])
+            const stroke = C.newFillColor(cs.stroke)
+            if (stroke) writes.push(['stroke', stroke])
+            return writes
+        }
 
-    // ignore custom tags which contain video, audio, img...
-    if (['video', 'audio', 'img'].some(it => tag.includes(it))) {
-        return true
-    }
+        const writes = []
 
-    if (tag === 'input' && ['checkbox', 'radio'].includes(node.type)) {
-        return true
-    }
+        const bg = C.newBackgroundColor(cs.backgroundColor)
+        if (bg) writes.push(['background-color', bg])
 
-    return false
-}
+        if (C.hasDarkGradient(cs.backgroundImage)) {
+            writes.push(['background-image', 'none'])
+            if (!bg) writes.push(['background-color', '#fff'])
+        }
 
-function updateStyle(node) {
-    if (ignoreTag(node)) {
-        return
-    }
-
-    const style = window.getComputedStyle(node)
-    const tag = node.tagName.toLowerCase()
-
-    const backgroundColor = style.backgroundColor
-    if (backgroundColor && backgroundColor !== 'transparent' && backgroundColor !== 'rgb(255, 255, 255)' && backgroundColor !== 'rgba(0, 0, 0, 0)') {
-        const alpha = parseFloat(backgroundColor.split(',')[3])
-        if (!isNaN(alpha) && alpha < 0.5) {
-            // ignore this
-        } else if (node.textContent.trim() || tag === 'input' || isDark(backgroundColor)) { // has text content
-            node.style.setProperty('background-color', '#fff', 'important')
-            // add border for code block
-            if (tag === 'pre' && node.className.trim() !== 'CodeMirror-line') {
-                node.style.setProperty('border', '1px solid #000', 'important')
+        if (!NO_TEXT_TAGS.has(tag)) {
+            const color = C.newTextColor(cs.color)
+            if (color) writes.push(['color', color])
+            if (tag === 'input' || tag === 'textarea' || el.isContentEditable) {
+                const caret = C.newTextColor(cs.caretColor)
+                if (caret) writes.push(['caret-color', caret])
             }
         }
+
+        const border = C.newBorderColor(cs.borderColor)
+        if (border) writes.push(['border-color', border])
+
+        return writes
     }
 
-    if (style.background.indexOf('linear-gradient') !== -1) {   // remove linear gradient
-        node.style.setProperty('background', '#fff', 'important')
-    }
+    function drain() {
+        const batch = []
+        for (const el of queue) {
+            queue.delete(el)
+            seen.add(el)
+            batch.push(el)
+            if (batch.length >= BATCH_SIZE) break
+        }
 
-    node.style.setProperty('color', '#000', 'important')
+        const plans = []
+        for (const el of batch) {
+            plans.push([el, planFor(el, getComputedStyle(el))])
+        }
+        for (const [el, writes] of plans) {
+            for (const [prop, value] of writes) {
+                el.style.setProperty(prop, value, 'important')
+            }
+        }
 
-    const borderColor = style.borderColor
-    if (borderColor && borderColor !== 'rgb(0, 0, 0)') {
-        if (!isDark(borderColor)) { // too light
-            node.style.setProperty('border-color', '#000', 'important')
+        if (queue.size) {
+            requestAnimationFrame(drain)
+        } else {
+            scheduled = false
         }
     }
 
-    if (tag === 'svg') {
-        node.style.setProperty('fill', 'currentColor', 'important')
+    function enqueue(el) {
+        if (seen.has(el) || queue.has(el) || skip(el)) return
+        queue.add(el)
+        if (!scheduled) {
+            scheduled = true
+            requestAnimationFrame(drain)
+        }
     }
-}
 
-chrome.storage.sync.get([`i:${window.location.host}`], function (items) {
-    let paused = items[`i:${window.location.host}`]
-    if (!paused) {
-        document.querySelectorAll('*').forEach((node) => {
-            updateStyle(node)
-        })
+    function enqueueTree(root) {
+        enqueue(root)
+        if (root.querySelectorAll) {
+            for (const el of root.querySelectorAll('*')) enqueue(el)
+        }
+    }
 
-        const observer = new MutationObserver((mutationList) => {
-            for (const mutation of mutationList) {
-                if (mutation.target) {
-                    updateStyle(mutation.target)
-                    mutation.target.childNodes.forEach((node) => {
-                        updateStyle(node)
-                    })
+    // Color-only stylesheet: native widgets/scrollbars follow a light scheme,
+    // selection and scrollbars stay readable on e-ink. Nothing here changes
+    // layout or size.
+    function addStyle() {
+        const style = document.createElement('style')
+        style.textContent = `
+:root { color-scheme: light !important; scrollbar-color: #000 #fff !important; }
+::-webkit-scrollbar-track { background-color: #fff !important; }
+::-webkit-scrollbar-thumb { background-color: #000 !important; }
+::-webkit-scrollbar-corner { background-color: #fff !important; }
+::selection { background-color: #000 !important; color: #fff !important; }`
+        document.documentElement.appendChild(style)
+    }
+
+    function start() {
+        addStyle()
+
+        const begin = () => {
+            enqueueTree(document.documentElement)
+
+            // Watch newly added nodes only. Attribute changes are deliberately
+            // not observed: inline !important writes already win over later
+            // class changes, and reacting to our own style writes is what
+            // caused endless churn in the old version.
+            new MutationObserver(mutations => {
+                for (const mutation of mutations) {
+                    for (const node of mutation.addedNodes) {
+                        if (node.nodeType === 1) enqueueTree(node)
+                    }
                 }
-            }
-        })
+            }).observe(document.documentElement, { childList: true, subtree: true })
+        }
 
-        observer.observe(document.getElementsByTagName('body')[0], { attributes: true, childList: true, subtree: true })
+        // Stylesheets block DOMContentLoaded, so all page CSS is final here
+        // and computed styles can be trusted.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', begin)
+        } else {
+            begin()
+        }
     }
-})
 
-chrome.runtime.onMessage.addListener(function (request) {
-    if (request === 'reload') {
-        window.location.reload()
-    }
-    return true
-})
+    const key = 'i:' + window.location.host
+    chrome.storage.local.get(key, items => {
+        if (!items[key]) start()
+    })
+
+    chrome.runtime.onMessage.addListener(request => {
+        if (request === 'reload') window.location.reload()
+    })
+})()
