@@ -62,45 +62,147 @@ const TRANSITION_PROPS = new Set([
 const RECHECK_GRACE_MS = 30 // transition end + slack before re-reading
 const RECHECK_MAX_MS = 2000 // never wait longer, even for long transitions
 
-// Mode B (Contrast): black-and-white mode — white background, black text, no
-// analysis and no exceptions. The triple :not(#eink) raises specificity to
-// three IDs, so the rules out-rank any site rule short of an ID-carrying
-// !important — a plain * would lose to every site !important out there.
-// Because the wildcard matches inside shadow roots, this also covers what
-// the per-node engine cannot reach. The shorthand background clears
-// gradients/images, so nothing dark can sit behind the forced black text;
-// <img> media keeps its colors. border-color and box-shadow are deliberately
-// NOT forced here: CSS cannot tell a transparent border (spacing, alignment —
-// Google's search box reserves 8px with one) or a black shadow from a colored
-// one, and blanket rules would paint solid black bars or delete every shadow.
-// The contrast pass below fixes both per element — colored borders and
-// shadows turn black, transparent borders and black shadows stay.
+// Mode B (Contrast): black-and-white mode — black text everywhere, white
+// background only where an element actually painted one. The stylesheet
+// forces text color, glyph paint (-webkit-text-fill-color renders OVER
+// color — white buttons on marketing sites are almost always this), caret,
+// native control accents, placeholders and text shadow: the triple
+// :not(#eink) raises specificity to three IDs, so the rules out-rank any
+// site rule short of an ID-carrying !important. What the stylesheet cannot
+// reach — a document stylesheet's selectors never match content inside open
+// shadow roots — or cannot beat — an ID-carrying !important site rule — the
+// pass below flips inline, where only a site inline style wins. Backgrounds
+// are deliberately NOT blanket-forced: an element the site left transparent
+// stays transparent, so layered/glass designs keep their look — what shows
+// through is an ancestor that painted something (whitened by the pass
+// below) or the white root. The pass writes `background: #fff` per element
+// where the element painted a color, image or gradient; the shorthand
+// clears those, so nothing dark can sit behind the forced black text;
+// <img> media keeps its colors. The :hover/:focus/:focus-visible/:active
+// rule is the other blanket background: interaction states are exactly when
+// a site paints its own background (the classic dark a:hover), the one-shot
+// pass never sees that moment, and a rest-state-transparent element must
+// still go white the instant it paints — black text on a dark hover paint
+// is the failure this rule prevents. The ::before/::after rule forces only
+// the text: pseudo backgrounds are handled per element by the pass, because
+// their paints are graphics (GitHub's selected-tab underline, badges) —
+// blanketing them white erased accent indicators against the white page
+// (the missing nav underline on github.com). Selection and scrollbars join
+// the forced black-and-white palette — a mode that recolors everything else
+// must not leave a site-styled selection or scrollbar colored.
+// border-color and box-shadow are likewise not forced here: CSS cannot tell
+// a transparent border (spacing, alignment — Google's search box reserves
+// 8px with one) or a black shadow from a colored one, and blanket rules
+// would paint solid black bars or delete every shadow. The contrast pass
+// below fixes both per element — colored borders and shadows turn black,
+// transparent borders and black shadows stay.
 const CONTRAST_TEXT = `
-html { color-scheme: light !important; background: #fff !important; }
-*:not(#eink):not(#eink):not(#eink),
+html { color-scheme: light !important; scrollbar-color: #000 #fff !important; background: #fff !important; }
+::-webkit-scrollbar-track { background-color: #fff !important; }
+::-webkit-scrollbar-thumb { background-color: #000 !important; }
+::-webkit-scrollbar-corner { background-color: #fff !important; }
+::selection { background-color: #000 !important; color: #fff !important; }
+*:not(#eink):not(#eink):not(#eink) {
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+  caret-color: #000 !important;
+  accent-color: #000 !important;
+  text-shadow: none !important;
+}
+*:not(#eink):not(#eink):not(#eink):hover,
+*:not(#eink):not(#eink):not(#eink):focus,
+*:not(#eink):not(#eink):not(#eink):focus-visible,
+*:not(#eink):not(#eink):not(#eink):active {
+  background: #fff !important;
+}
+*:not(#eink):not(#eink):not(#eink)::placeholder {
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+}
 *:not(#eink):not(#eink):not(#eink)::before,
 *:not(#eink):not(#eink):not(#eink)::after {
-  background: #fff !important;
   color: #000 !important;
-  caret-color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
   text-shadow: none !important;
 }`
 
-// Mode B borders and shadows: colored borders go black, transparent ones
-// stay — CSS cannot tell them apart, so a small pass reads each element once
-// and only writes where a border actually paints. Batching follows the same
-// discipline as the engine (read the whole batch, then write). A border
-// side counts as colored when its alpha is at least half; everything
-// fainter reads as decorative transparency. Colored box-shadows are
-// blackened in place (newBoxShadow keeps their alpha); black ones and
-// 'none' stay, so shadows survive contrast mode instead of being dropped.
+// Mode B backgrounds, borders and shadows: read each element once and write
+// only where something actually paints. A painted background — any color
+// with alpha, or any image/gradient — becomes flat white; the shorthand also
+// clears images and gradients, so nothing dark can sit behind the forced
+// black text. A fully transparent element is left clear: it shows an
+// ancestor's whitened surface or the white root, and layered designs keep
+// their look. Pseudo-elements get the same per-paint read: their paints are
+// graphics (selected-tab underlines, badges), so a color or gradient turns
+// black like a border and stays visible on the white page — blanketing them
+// white erased GitHub's accent underline — while a url() photo fill goes
+// white like a surface. Pseudo-elements cannot take inline styles, so their
+// writes become generated stylesheet rules on a data-eink-p hook attribute.
+// Text the stylesheet lost — white glyph paints inside open shadow roots or
+// behind an ID-carrying !important site rule — is flipped inline with the
+// same light-paint threshold as everywhere: only what would be invisible on
+// white changes, mid grays keep the site's paint. Pseudo reads are skipped
+// for replaced media and form controls (pseudo-elements never render there —
+// two getComputedStyle calls saved per element). Batching follows the same
+// discipline as the engine (read the whole batch, then write). A border side
+// counts as colored when its alpha is at least half; everything fainter
+// reads as decorative transparency. Colored box-shadows are blackened in
+// place (newBoxShadow keeps their alpha); black ones and 'none' stay, so
+// shadows survive contrast mode instead of being dropped.
 const BORDER_OPAQUE = 0.5
 const BORDER_SIDES = ['Top', 'Right', 'Bottom', 'Left']
+const PSEUDOS = ['::before', '::after']
+// Pseudo-elements never render on these; ::placeholder exists on the first
+// two only.
+const FORM_TAGS = new Set(['input', 'textarea', 'select'])
 
-function createContrastPass(C, { styles, schedule, batchSize = 400 }) {
+function createContrastPass(C, { styles, schedule, applyCss = () => {}, batchSize = 400 }) {
+    // True when the element paints anything behind its text: a background
+    // color with any alpha (even a faint overlay darkens what the black text
+    // sits on) or any image/gradient. Fully transparent elements show an
+    // ancestor's already-whitened surface, so they stay clear.
+    function paintsBackground(cs) {
+        const c = C.parseColor(cs.backgroundColor)
+        if (c && c.a > 0) return true
+        const image = String(cs.backgroundImage || '')
+        return image !== '' && image !== 'none'
+    }
+
     const seen = new WeakSet()
     const queue = new Set()
+    const written = new WeakMap() // el → Map(prop → value we wrote inline)
+    const pseudoCss = new Map()   // 'id|::pseudo' → rule text already emitted
+    let pseudoCounter = 0
     let scheduled = false
+
+    // Skipped tags and non-painting svg internals — shared by scan and replan.
+    function skippable(el) {
+        const tag = el.tagName.toLowerCase()
+        if (SKIP_TAGS.has(tag)) return true
+        if (el.ownerSVGElement || tag === 'svg') {
+            return tag !== 'svg' && !SVG_SHAPES.has(tag)
+        }
+        return false
+    }
+
+    // Writes the desired inline state and removes anything we wrote earlier
+    // that no longer applies — a class change can un-paint an element, and
+    // the stale inline white must go with it. Identical values are skipped:
+    // re-plans run on every class churn, most change nothing.
+    function applyWrites(el, writes) {
+        const prev = written.get(el)
+        const next = new Map(writes)
+        if (prev) {
+            for (const prop of prev.keys()) {
+                if (!next.has(prop)) el.style.removeProperty(prop)
+            }
+        }
+        for (const [prop, value] of next) {
+            if (!prev || prev.get(prop) !== value) el.style.setProperty(prop, value, 'important')
+        }
+        if (next.size) written.set(el, next)
+        else written.delete(el)
+    }
 
     function drain() {
         const batch = []
@@ -111,15 +213,59 @@ function createContrastPass(C, { styles, schedule, batchSize = 400 }) {
             if (batch.length >= batchSize) break
         }
 
-        // read phase: widths gate the borders, the shadow color is its own gate
+        // read phase: a painted background or a border width gates the
+        // color writes, the shadow color is its own gate
         const plans = []
         for (const el of batch) {
             const cs = styles(el)
+            const tag = el.tagName.toLowerCase()
+            if (el.ownerSVGElement || tag === 'svg') {
+                // svg paints with fill/stroke, not CSS surfaces: a light fill
+                // designed against a dark site vanishes on the whitened page,
+                // so it follows the (forced black) text color like in auto mode
+                const writes = []
+                const fill = C.newFillColor(cs.fill)
+                if (fill) writes.push(['fill', fill])
+                const stroke = C.newFillColor(cs.stroke)
+                if (stroke) writes.push(['stroke', stroke])
+                if (writes.length) plans.push([el, writes, []])
+                continue
+            }
             const shadow = C.newBoxShadow(cs.boxShadow)
             let width = 0
             for (const side of BORDER_SIDES) width += parseFloat(cs['border' + side + 'Width']) || 0
-            if (!width && !shadow) continue
-            const writes = []
+            const painted = paintsBackground(cs)
+            // Text the stylesheet cannot reach or cannot beat: computed white
+            // after our own sheet applied means the site rule won (or the
+            // element sits in a shadow root our sheet never matches) — inline
+            // is the only write left. Dark and mid grays keep their paint.
+            const textWrites = []
+            if (!NO_TEXT_TAGS.has(tag)) {
+                const color = C.newTextColor(cs.color)
+                if (color) textWrites.push(['color', color])
+                const fillColor = C.newTextColor(cs.webkitTextFillColor)
+                if (fillColor) textWrites.push(['-webkit-text-fill-color', fillColor])
+                if (tag === 'input' || tag === 'textarea' || el.isContentEditable) {
+                    const caret = C.newTextColor(cs.caretColor)
+                    if (caret) textWrites.push(['caret-color', caret])
+                }
+            }
+            const pseudoPaints = []
+            if (!NO_TEXT_TAGS.has(tag) && !FORM_TAGS.has(tag)) {
+                for (const pseudo of PSEUDOS) {
+                    const pcs = styles(el, pseudo)
+                    if (!pcs || pcs.content === 'none' || !paintsBackground(pcs)) continue
+                    const photo = String(pcs.backgroundImage || '').includes('url(')
+                    pseudoPaints.push([pseudo, photo ? '#fff' : '#000'])
+                }
+            }
+            const id = el.getAttribute('data-eink-p')
+            const hasRules = id !== null && PSEUDOS.some(p => pseudoCss.has(id + '|' + p))
+            // elements we wrote before stay in the plan even when fully clear:
+            // applyWrites must be able to drop their stale inline values
+            if (!painted && !width && !shadow && !textWrites.length && !pseudoPaints.length && !hasRules && !written.has(el)) continue
+            const writes = [...textWrites]
+            if (painted) writes.push(['background', '#fff'])
             if (width) {
                 for (const side of BORDER_SIDES) {
                     const c = C.parseColor(cs['border' + side + 'Color'])
@@ -127,13 +273,36 @@ function createContrastPass(C, { styles, schedule, batchSize = 400 }) {
                 }
             }
             if (shadow) writes.push(['box-shadow', shadow])
-            if (writes.length) plans.push([el, writes])
+            plans.push([el, writes, pseudoPaints])
         }
 
         // write phase: inline !important wins over any site rule; colors and
-        // shadows only repaint, they never reflow
-        for (const [el, writes] of plans) {
-            for (const [prop, value] of writes) el.style.setProperty(prop, value, 'important')
+        // shadows only repaint, they never reflow. A pseudo paint lands as a
+        // generated rule on the element's data-eink-p hook, deduped by text;
+        // when a re-plan un-paints a pseudo, a reset rule supersedes the old
+        // one (the sheet is append-only, a later rule wins).
+        for (const [el, writes, pseudoPaints] of plans) {
+            applyWrites(el, writes)
+            let id = el.getAttribute('data-eink-p')
+            const hasRules = id !== null && PSEUDOS.some(p => pseudoCss.has(id + '|' + p))
+            if (!pseudoPaints.length && !hasRules) continue
+            if (!id) {
+                pseudoCounter += 1
+                id = String(pseudoCounter)
+                el.setAttribute('data-eink-p', id)
+            }
+            let cssText = ''
+            for (const pseudo of PSEUDOS) {
+                const key = id + '|' + pseudo
+                const paint = pseudoPaints.find(([p]) => p === pseudo)
+                const rule = paint
+                    ? `[data-eink-p="${id}"]${pseudo}{background:${paint[1]}!important}`
+                    : (pseudoCss.has(key) ? `[data-eink-p="${id}"]${pseudo}{background:none!important}` : null)
+                if (!rule || pseudoCss.get(key) === rule) continue
+                pseudoCss.set(key, rule)
+                cssText += rule
+            }
+            if (cssText) applyCss(cssText)
         }
 
         if (queue.size) schedule(drain)
@@ -142,10 +311,13 @@ function createContrastPass(C, { styles, schedule, batchSize = 400 }) {
 
     function scan(el) {
         if (el.nodeType !== 1 || seen.has(el) || queue.has(el)) return
-        const tag = el.tagName.toLowerCase()
-        if (SKIP_TAGS.has(tag)) return
-        if (el.ownerSVGElement || tag === 'svg') return // svg paints with fill/stroke, not CSS borders
+        if (skippable(el)) return
         queue.add(el)
+        // The wildcard stylesheet no longer paints backgrounds, so open
+        // shadow roots must be walked here — querySelectorAll and the
+        // document observer both stop at the shadow boundary. (Closed ones
+        // are unreachable from JS; their text still goes black via CSS.)
+        if (el.shadowRoot) scanTree(el.shadowRoot)
         if (!scheduled) {
             scheduled = true
             schedule(drain)
@@ -159,15 +331,51 @@ function createContrastPass(C, { styles, schedule, batchSize = 400 }) {
         }
     }
 
+    // Class churn and form commits repaint after load (theme toggles,
+    // selected tabs, :checked siblings): re-read the affected elements once.
+    // A one-shot scan would leak exactly the dark paints the mode exists to
+    // remove — an element that was transparent at load and gains a painted
+    // background via a class change. applyWrites drops stale inline values,
+    // so an element that went back to clear loses its white too.
+    function replan(el) {
+        if (!el || el.nodeType !== 1 || skippable(el)) return
+        seen.delete(el)
+        if (!queue.has(el)) queue.add(el)
+        if (!scheduled) {
+            scheduled = true
+            schedule(drain)
+        }
+    }
+
+    function replanTree(root) {
+        replan(root)
+        if (root.querySelectorAll) {
+            for (const el of root.querySelectorAll('*')) replan(el)
+        }
+    }
+
     function onMutations(mutationList) {
         for (const mutation of mutationList) {
+            if (mutation.type === 'attributes') {
+                replan(mutation.target)
+                continue
+            }
             for (const node of mutation.addedNodes) {
                 if (node.nodeType === 1) scanTree(node)
             }
         }
     }
 
-    return { scanTree, onMutations }
+    // :checked restyles siblings (input:checked + label) that the class
+    // observer cannot see — mirror the auto engine's form pass.
+    function applyFormChange(target) {
+        if (!target || target.nodeType !== 1) return
+        const parent = target.parentElement
+        if (parent) replanTree(parent)
+        else replan(target)
+    }
+
+    return { scanTree, onMutations, applyFormChange }
 }
 
 function createEngine(C, { styles, schedule, applyCss = () => {}, batchSize = 300, delay = () => undefined, cancelDelay = () => {} }) {
@@ -193,10 +401,11 @@ function createEngine(C, { styles, schedule, applyCss = () => {}, batchSize = 30
         return false
     }
 
-    // Pseudo-elements don't paint on replaced elements or svg shapes.
+    // Pseudo-elements don't paint on replaced elements, svg shapes or form
+    // controls (Chrome renders none there — the reads would be pure waste).
     function pseudoCapable(el) {
         const tag = el.tagName.toLowerCase()
-        if (NO_TEXT_TAGS.has(tag)) return false
+        if (NO_TEXT_TAGS.has(tag) || FORM_TAGS.has(tag)) return false
         if (el.ownerSVGElement || tag === 'svg') return false
         return typeof el.setAttribute === 'function'
     }
@@ -269,6 +478,15 @@ function createEngine(C, { styles, schedule, applyCss = () => {}, batchSize = 30
         if (!onImage && !NO_TEXT_TAGS.has(tag)) {
             const color = C.newTextColor(cs.color)
             if (color) writes.push(['color', color])
+            // -webkit-text-fill-color renders OVER color (gradient-text
+            // patterns without the clip): a white glyph paint stays white
+            // through a color flip, so it flips with the text.
+            const fillColor = C.newTextColor(cs.webkitTextFillColor)
+            if (fillColor) writes.push(['-webkit-text-fill-color', fillColor])
+            // native checkbox/radio/progress accents: a white accent would
+            // vanish on the flipped white background
+            const accent = C.newTextColor(cs.accentColor)
+            if (accent) writes.push(['accent-color', accent])
             if (tag === 'input' || tag === 'textarea' || el.isContentEditable) {
                 const caret = C.newTextColor(cs.caretColor)
                 if (caret) writes.push(['caret-color', caret])
@@ -278,6 +496,14 @@ function createEngine(C, { styles, schedule, applyCss = () => {}, batchSize = 30
         }
 
         return writes
+    }
+
+    // ::placeholder exists on inputs/textareas only, styled light on dark
+    // sites and left invisible after the flip; the generated-rule machinery
+    // below handles it like a pseudo paint.
+    function placeholderPlan(pcs) {
+        const color = C.newTextColor(pcs.color)
+        return color ? [['color', color]] : []
     }
 
     // Same decisions for ::before/::after. Pseudo-elements can't take inline
@@ -387,6 +613,8 @@ function createEngine(C, { styles, schedule, applyCss = () => {}, batchSize = 30
             const canPseudo = pseudoCapable(el)
             const beforeCs = canPseudo ? styles(el, '::before') : null
             const afterCs = canPseudo ? styles(el, '::after') : null
+            const tag = el.tagName.toLowerCase()
+            const placeholderCs = (tag === 'input' || tag === 'textarea') ? styles(el, '::placeholder') : null
             const kind = resolveKind(el, cs, beforeCs, afterCs)
             bgKind.set(el, kind)
             plans.push({
@@ -403,6 +631,10 @@ function createEngine(C, { styles, schedule, applyCss = () => {}, batchSize = 30
                     const writes = pseudoPlan(kind, afterCs)
                     if (writes.length) pseudoPlans.push([el, '::after', writes])
                 }
+            }
+            if (placeholderCs) {
+                const writes = placeholderPlan(placeholderCs)
+                if (writes.length) pseudoPlans.push([el, '::placeholder', writes])
             }
         }
 

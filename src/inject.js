@@ -55,9 +55,11 @@
         }
     }
 
-    // Mode B (contrast): black-and-white mode — one wildcard stylesheet
-    // forces white backgrounds with black text on every element, including
-    // inside shadow roots. Pure CSS, so it applies immediately.
+    // Mode B (contrast): black-and-white mode — a wildcard stylesheet forces
+    // black text on every element, including inside shadow roots; the pass
+    // below whitens only the backgrounds that actually paint, so elements
+    // the site left transparent stay clear. Pure CSS, so it applies
+    // immediately.
     const startContrast = () => {
         const styleEl = document.createElement('style')
         styleEl.textContent = globalThis.EinkEngine.CONTRAST_TEXT
@@ -73,18 +75,38 @@
         })
         observer.observe(document.documentElement, { childList: true })
         keepAlive.push(observer)
-        // Borders and shadows: CSS cannot tell a colored border or shadow
-        // from a transparent one or a black one, so each element is scanned
-        // once, batched like the engine; nodes added later are picked up by
-        // the same observer.
+        // Backgrounds, borders and shadows: CSS cannot read whether an
+        // element or pseudo-element paints, so each is scanned once, batched
+        // like the engine; nodes added later are picked up by the same
+        // observer, and class churn re-plans nodes the site repaints after
+        // load (theme toggles, selected tabs). 'class' is the only attribute
+        // watched: the pass writes style/data-eink-p, so its own changes
+        // cannot feed back. Form commits restyle siblings
+        // (input:checked + label) neither observer can see.
         const pass = globalThis.EinkEngine.createContrastPass(globalThis.EinkColor, {
             styles: el => window.getComputedStyle(el),
-            schedule: callback => window.requestAnimationFrame(callback)
+            schedule: callback => window.requestAnimationFrame(callback),
+            applyCss: css => styleEl.append(css)
         })
-        pass.scanTree(document.documentElement)
-        const passObserver = new MutationObserver(mutations => pass.onMutations(mutations))
-        passObserver.observe(document.documentElement, { childList: true, subtree: true })
-        keepAlive.push(passObserver)
+        const begin = () => {
+            pass.scanTree(document.documentElement)
+            const passObserver = new MutationObserver(mutations => pass.onMutations(mutations))
+            passObserver.observe(document.documentElement, {
+                childList: true, subtree: true,
+                attributes: true, attributeFilter: ['class']
+            })
+            keepAlive.push(passObserver)
+            // :checked restyles siblings the class observer cannot see
+            document.addEventListener('change', event => pass.applyFormChange(event.target), true)
+        }
+        // Stylesheets block DOMContentLoaded, so all page CSS is final here —
+        // reading computed styles any earlier judges half-styled elements
+        // and caches the wrong decisions for good.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', begin)
+        } else {
+            begin()
+        }
     }
 
     service.getSiteMode(window.location.href).then(mode => {

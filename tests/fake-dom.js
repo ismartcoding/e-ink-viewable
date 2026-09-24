@@ -7,8 +7,19 @@ function createRecorder() {
         log,
         reads: () => log.filter(e => e[0] === 'read'),
         writes: () => log.filter(e => e[0] === 'write'),
-        props: el => Object.fromEntries(log.filter(e => e[0] === 'write' && e[1] === el).map(e => [e[2], e[3]])),
-        // opts: { parent, contentEditable, ownerSvg, pseudo: {'::before': {...}, '::after': {...}} }
+        // final inline state: writes applied in order, removals clearing keys
+        props: el => {
+            const out = {}
+            for (const e of log) {
+                if (e[1] !== el) continue
+                if (e[0] === 'write') out[e[2]] = e[3]
+                else if (e[0] === 'remove') delete out[e[2]]
+            }
+            return out
+        },
+        removals: () => log.filter(e => e[0] === 'remove'),
+        // opts: { parent, contentEditable, ownerSvg, shadowRoot,
+        //         pseudo: {'::before': {...}, '::after': {...}} }
         el(tag, opts = {}) {
             const el = {
                 nodeType: 1,
@@ -19,6 +30,9 @@ function createRecorder() {
                 style: {
                     setProperty(prop, value) {
                         log.push(['write', el, prop, value])
+                    },
+                    removeProperty(prop) {
+                        log.push(['remove', el, prop])
                     }
                 },
                 attrs: {},
@@ -30,6 +44,7 @@ function createRecorder() {
                 }
             }
             if (opts.pseudo) el._pseudo = opts.pseudo
+            if (opts.shadowRoot) el.shadowRoot = opts.shadowRoot
             return el
         }
     }

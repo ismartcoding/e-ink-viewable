@@ -7,14 +7,14 @@ A chrome extension to make all websites viewable in e-ink screen, convert dark t
 The popup has one switch for the current site (changes apply immediately):
 
 - **Comfort (Auto, default)** — the per-node conversion engine described below. Keeps the site's own look as far as possible.
-- **High contrast (Contrast)** — black-and-white mode: one wildcard stylesheet forces a white background with black text on every element (`!important`). Colored borders and box-shadows turn black while transparent ones (spacing tricks) stay — CSS cannot tell them apart, so a small per-element pass fixes both, batched like the engine. Images keep their own colors. The rules match inside shadow roots, so it also covers what the per-node engine cannot reach — on every site, dark or light.
+- **High contrast (Contrast)** — black-and-white mode: one wildcard stylesheet forces black text on every element (`!important`) — including the glyph paint (`-webkit-text-fill-color`), form placeholders and native control accents that plain `color` cannot reach — while backgrounds go white only where the element itself painted one (a color, image or gradient); elements the site left transparent stay transparent, so layered designs keep their look. Colored borders and box-shadows turn black while transparent ones (spacing tricks) stay — CSS cannot tell them apart, so a small per-element pass fixes all three, batched like the engine; the same pass flips inline the white text inside open shadow roots (a document stylesheet never matches shadow content) and behind ID-carrying `!important` site rules. Pseudo-element graphics (selected-tab underlines, badges) go black like borders, light svg fills follow the text color, and repaints via class changes or form commits are re-checked. The first pass waits for `DOMContentLoaded`, when all stylesheets are final. Images keep their own colors — on every site, dark or light.
 - **Off** — the site's own look.
 
 The gear icon in the popup sets the **default mode** for sites without their own choice. The keyboard shortcut (`Ctrl+Shift+X` by default) flips the current site between off and its last mode.
 
 ## Languages
 
-English and Simplified Chinese so far. The popup's settings panel (gear icon) has a language switch — by default it follows the browser's language (`src/_locales/`). Adding a language = dropping a `messages.json` into a new locale folder.
+Seventeen: English, 简体中文, 繁體中文, 日本語, 한국어, Español, Português (Brasil), Français, Deutsch, Italiano, Русский, العربية, हिन्दी, Bahasa Indonesia, Tiếng Việt, ไทย, Türkçe. The popup's settings panel (gear icon) has a language dropdown — by default it follows the browser's language (`src/_locales/`); Arabic flips the popup to right-to-left. Adding a language = dropping a `messages.json` into a new locale folder plus one `<option>` in `popup.html`.
 
 ## How it works
 
