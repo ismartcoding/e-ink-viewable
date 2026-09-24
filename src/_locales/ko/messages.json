@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "전자잉크 웹 어시스턴트"
+  },
+  "extDesc": {
+    "message": "모든 웹사이트를 전자잉크 화면에서 읽기 쉽게: 다크 테마를 자동으로 라이트 테마로 바꿉니다."
+  },
+  "appName": {
+    "message": "전자잉크 웹 어시스턴트"
+  },
+  "thisSite": {
+    "message": "이 사이트의 표시 모드"
+  },
+  "modeAuto": {
+    "message": "편안"
+  },
+  "modeContrast": {
+    "message": "고대비"
+  },
+  "modeOff": {
+    "message": "끄기"
+  },
+  "settingsTooltip": {
+    "message": "설정"
+  },
+  "helpTooltip": {
+    "message": "도움말"
+  },
+  "settingsTitle": {
+    "message": "다른 사이트의 기본 모드"
+  },
+  "settingsHint": {
+    "message": "개별 설정하지 않은 사이트에 적용됩니다"
+  },
+  "helpAuto": {
+    "message": "편안: 어두운 색을 자동으로 밝게 바꾸고 사이트의 원래 모습을 최대한 유지합니다."
+  },
+  "helpContrast": {
+    "message": "고대비: 흰 배경에 검은 글자의 흑백 모드. 편안 모드가 어색할 때 사용하세요."
+  },
+  "helpOff": {
+    "message": "끄기: 이 사이트는 원래대로 표시됩니다."
+  },
+  "helpDefault": {
+    "message": "기본 모드: 설정(톱니바퀴)에서 바꾸며 개별 설정이 없는 모든 사이트에 적용됩니다."
+  },
+  "shortcutsLink": {
+    "message": "키보드 단축키"
+  },
+  "promoLine": {
+    "message": "개발자의 오픈소스 앱 PlainApp · 브라우저에서 휴대폰 관리"
+  },
+  "langAuto": {
+    "message": "브라우저 따르기"
+  },
+  "langLabel": {
+    "message": "언어"
+  }
+}

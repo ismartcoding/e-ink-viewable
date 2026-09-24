@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "Encre électronique web"
+  },
+  "extDesc": {
+    "message": "Rendez tous les sites lisibles sur encre électronique : les thèmes sombres deviennent clairs automatiquement."
+  },
+  "appName": {
+    "message": "Assistant web encre électronique"
+  },
+  "thisSite": {
+    "message": "Ce site s'affiche en"
+  },
+  "modeAuto": {
+    "message": "Confort"
+  },
+  "modeContrast": {
+    "message": "Contraste élevé"
+  },
+  "modeOff": {
+    "message": "Désactivé"
+  },
+  "settingsTooltip": {
+    "message": "Paramètres"
+  },
+  "helpTooltip": {
+    "message": "Aide"
+  },
+  "settingsTitle": {
+    "message": "Mode par défaut des autres sites"
+  },
+  "settingsHint": {
+    "message": "S'applique à tout site sans choix propre"
+  },
+  "helpAuto": {
+    "message": "Confort : transforme automatiquement les couleurs sombres en claires, en gardant l'apparence du site."
+  },
+  "helpContrast": {
+    "message": "Contraste élevé : mode noir et blanc, fond blanc et texte noir. À utiliser si Confort rend mal."
+  },
+  "helpOff": {
+    "message": "Désactivé : ce site retrouve son apparence normale."
+  },
+  "helpDefault": {
+    "message": "Par défaut : à modifier dans les Paramètres (engrenage). S'applique à tout site sans choix propre."
+  },
+  "shortcutsLink": {
+    "message": "Raccourcis clavier"
+  },
+  "promoLine": {
+    "message": "PlainApp, l'application open source de l'auteur : gérez votre téléphone depuis le navigateur"
+  },
+  "langAuto": {
+    "message": "Automatique"
+  },
+  "langLabel": {
+    "message": "Langue"
+  }
+}

@@ -5,7 +5,7 @@
 // elements, the mode service and the tab access are injected, so tests drive
 // it on fake elements (tests/popup-ui.test.js); popup.js is only chrome glue.
 
-function createPopupUi({ service, i18n, getActiveTab, sendMessage, openPage, el }) {
+function createPopupUi({ service, i18n, browserLang = 'en', getActiveTab, sendMessage, openPage, el }) {
     let siteMode = null // 'auto' | 'contrast' | 'off'; null = not a web page
     let defaultMode = 'auto'
     let settingsOpen = false
@@ -25,12 +25,14 @@ function createPopupUi({ service, i18n, getActiveTab, sendMessage, openPage, el 
             button.textContent = modeLabels[button.dataset.mode]
         }
         el.langLabel.textContent = t('langLabel')
-        for (const button of el.languageButtons) {
-            // language names stay in their own language, by convention
-            button.textContent = button.dataset.lang === 'en' ? 'English'
-                : button.dataset.lang === 'zh_CN' ? '中文'
-                : t('langAuto')
-        }
+        // the language names stay in their own language (static options in
+        // popup.html); only the auto option translates
+        el.langAutoOption.textContent = t('langAuto')
+        // the popup's reading direction follows the effective language —
+        // Arabic reads right-to-left, everything else left-to-right
+        const effective = lang || browserLang
+        el.root.setAttribute('lang', effective.replace('_', '-'))
+        el.root.setAttribute('dir', effective.startsWith('ar') ? 'rtl' : 'ltr')
         el.settingsTitle.textContent = t('settingsTitle')
         el.settingsHint.textContent = t('settingsHint')
         el.helpAuto.textContent = t('helpAuto')
@@ -53,9 +55,7 @@ function createPopupUi({ service, i18n, getActiveTab, sendMessage, openPage, el 
         for (const button of el.defaultModeButtons) {
             button.classList.toggle('selected', button.dataset.mode === defaultMode)
         }
-        for (const button of el.languageButtons) {
-            button.classList.toggle('selected', button.dataset.lang === lang)
-        }
+        el.languageSelect.value = lang
         el.settingsPanel.hidden = !settingsOpen
         el.helpPanel.hidden = !helpOpen
     }
@@ -92,15 +92,25 @@ function createPopupUi({ service, i18n, getActiveTab, sendMessage, openPage, el 
         })
     }
 
-    for (const button of el.languageButtons) {
+    for (const button of el.defaultModeButtons) {
         button.addEventListener('click', async () => {
-            lang = button.dataset.lang
-            await i18n.saveLang(lang)
-            t = await i18n.load(lang)
-            applyText()
+            const mode = await service.setDefaultMode(button.dataset.mode)
+            if (!mode) return
+            defaultMode = mode
             render()
+            // Sites without their own override follow the default, so the
+            // current tab always re-applies here.
+            reloadActiveTab()
         })
     }
+
+    el.languageSelect.addEventListener('change', async () => {
+        lang = el.languageSelect.value
+        await i18n.saveLang(lang)
+        t = await i18n.load(lang)
+        applyText()
+        render()
+    })
 
     el.settings.addEventListener('click', () => {
         settingsOpen = !settingsOpen

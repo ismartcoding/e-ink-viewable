@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "Tinta electrónica web"
+  },
+  "extDesc": {
+    "message": "Haz legible cualquier web en tinta electrónica: los temas oscuros se vuelven claros automáticamente."
+  },
+  "appName": {
+    "message": "Asistente web para tinta electrónica"
+  },
+  "thisSite": {
+    "message": "Este sitio se muestra como"
+  },
+  "modeAuto": {
+    "message": "Cómodo"
+  },
+  "modeContrast": {
+    "message": "Alto contraste"
+  },
+  "modeOff": {
+    "message": "Apagado"
+  },
+  "settingsTooltip": {
+    "message": "Configuración"
+  },
+  "helpTooltip": {
+    "message": "Ayuda"
+  },
+  "settingsTitle": {
+    "message": "Modo predeterminado para otros sitios"
+  },
+  "settingsHint": {
+    "message": "Se aplica a todo sitio sin ajuste propio"
+  },
+  "helpAuto": {
+    "message": "Cómodo: convierte los colores oscuros en claros automáticamente, manteniendo el aspecto del sitio."
+  },
+  "helpContrast": {
+    "message": "Alto contraste: modo blanco y negro, fondo blanco y texto negro. Úsalo cuando Cómodo no se vea bien."
+  },
+  "helpOff": {
+    "message": "Apagado: este sitio vuelve a su aspecto normal."
+  },
+  "helpDefault": {
+    "message": "Predeterminado: cámbialo en Configuración (engranaje). Se aplica a todo sitio sin ajuste propio."
+  },
+  "shortcutsLink": {
+    "message": "Atajos de teclado"
+  },
+  "promoLine": {
+    "message": "PlainApp, la app de código abierto del autor: gestiona tu móvil desde el navegador"
+  },
+  "langAuto": {
+    "message": "Automático"
+  },
+  "langLabel": {
+    "message": "Idioma"
+  }
+}

@@ -5,7 +5,7 @@ const PopupUi = require('../src/popup-ui.js')
 
 // Real toggle service on fake storage + fake popup elements: behavior-level
 // tests of what the user sees and what each click does.
-function setup({ local = {}, activeUrl = 'https://a.com/page' } = {}) {
+function setup({ local = {}, activeUrl = 'https://a.com/page', browserLang = 'en' } = {}) {
     const localData = { ...local }
     const service = Toggle.createToggleService({
         storage: {
@@ -38,14 +38,15 @@ function setup({ local = {}, activeUrl = 'https://a.com/page' } = {}) {
         return button
     }
     const el = {
+        root: makeButton('root'),
         appTitle: { textContent: '' },
         siteLabel: { textContent: '' },
         langLabel: { textContent: '' },
-        languageButtons: [['', 'langAuto'], ['en', 'langEn'], ['zh_CN', 'langZhCn']].map(([code, name]) => {
-            const button = makeButton(name)
-            button.dataset.lang = code
-            return button
-        }),
+        languageSelect: {
+            value: '',
+            addEventListener: (type, handler) => { clicks.langSelect = handler }
+        },
+        langAutoOption: { textContent: '' },
         siteModeButtons: ['auto', 'contrast', 'off'].map(mode => {
             const button = makeButton('seg' + cap(mode))
             button.dataset.mode = mode
@@ -93,6 +94,7 @@ function setup({ local = {}, activeUrl = 'https://a.com/page' } = {}) {
     const ui = PopupUi.createPopupUi({
         service,
         i18n,
+        browserLang,
         getActiveTab: async () => activeTab,
         sendMessage: async (tabId, message) => { sent.push([tabId, message]) },
         openPage: url => opened.push(url),
@@ -132,9 +134,7 @@ test('init: every visible text comes from the translate function', async () => {
     assert.equal(el.helpOff.textContent, 't:helpOff')
     assert.equal(el.helpDefault.textContent, 't:helpDefault')
     assert.equal(el.langLabel.textContent, 't:langLabel')
-    assert.equal(el.languageButtons[0].textContent, 't:langAuto')
-    assert.equal(el.languageButtons[1].textContent, 'English')
-    assert.equal(el.languageButtons[2].textContent, '中文')
+    assert.equal(el.langAutoOption.textContent, 't:langAuto') // language names stay static
     assert.equal(el.shortcuts.textContent, 't:shortcutsLink')
     assert.equal(el.promo.textContent, 't:promoLine')
     assert.equal(el.settings.title, 't:settingsTooltip')
@@ -210,19 +210,21 @@ test('the help button toggles the help panel', async () => {
     assert.equal(el.helpPanel.hidden, true)
 })
 
-test('clicking Chinese switches every text and persists the choice', async () => {
+test('choosing Chinese switches every text, persists and mirrors the select', async () => {
     const { el, clicks, i18n, ui } = setup()
     await ui.init()
     await clicks.settings() // the language entry lives in the settings panel
     assert.equal(el.settingsPanel.hidden, false)
 
-    await clicks.langZhCn()
+    el.languageSelect.value = 'zh_CN'
+    await clicks.langSelect()
 
     assert.equal(i18n.saved, 'zh_CN')
     assert.equal(el.appTitle.textContent, '中文助手')
     assert.equal(el.siteModeButtons[0].textContent, '舒适')
-    assert.equal(el.languageButtons[2].classes.has('selected'), true)
-    assert.equal(el.languageButtons[0].classes.has('selected'), false)
+    assert.equal(el.languageSelect.value, 'zh_CN')
+    assert.equal(el.root.attrs['lang'], 'zh-CN')
+    assert.equal(el.root.attrs['dir'], 'ltr')
 })
 
 test('a saved language applies on init without any click', async () => {
@@ -232,20 +234,39 @@ test('a saved language applies on init without any click', async () => {
 
     assert.equal(el.appTitle.textContent, '中文助手')
     assert.equal(el.siteModeButtons[0].textContent, '舒适')
-    assert.equal(el.languageButtons[2].classes.has('selected'), true)
+    assert.equal(el.languageSelect.value, 'zh_CN')
 })
 
-test('clicking Auto clears the manual choice', async () => {
+test('choosing Auto clears the manual choice', async () => {
     const { el, clicks, i18n, ui } = setup({ local: {} })
     i18n.saved = 'zh_CN'
     await ui.init()
     await clicks.settings()
 
-    await clicks.langAuto()
+    el.languageSelect.value = ''
+    await clicks.langSelect()
 
     assert.equal(i18n.saved, '')
     assert.equal(el.appTitle.textContent, 't:appName') // back to browser language
-    assert.equal(el.languageButtons[0].classes.has('selected'), true)
+    assert.equal(el.languageSelect.value, '')
+    assert.equal(el.root.attrs['dir'], 'ltr')
+})
+
+test('Arabic flips the popup to right-to-left, auto with an Arabic browser too', async () => {
+    const { el, clicks, ui } = setup({ browserLang: 'en' })
+    await ui.init()
+
+    el.languageSelect.value = 'ar'
+    await clicks.langSelect()
+    assert.equal(el.root.attrs['dir'], 'rtl')
+
+    el.languageSelect.value = ''
+    await clicks.langSelect()
+    assert.equal(el.root.attrs['dir'], 'ltr') // browser is English again
+
+    const { el: el2, ui: ui2 } = setup({ browserLang: 'ar' })
+    await ui2.init()
+    assert.equal(el2.root.attrs['dir'], 'rtl') // auto follows an Arabic browser
 })
 
 test('shortcuts link opens the Chrome shortcuts page', async () => {

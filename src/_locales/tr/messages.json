@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "E-mürekkep Web Yardımcısı"
+  },
+  "extDesc": {
+    "message": "Her siteyi e-mürekkep ekranda okunur yapar: koyu temalar otomatik olarak açığa döner."
+  },
+  "appName": {
+    "message": "E-mürekkep Web Yardımcısı"
+  },
+  "thisSite": {
+    "message": "Bu site şöyle görünür"
+  },
+  "modeAuto": {
+    "message": "Rahat"
+  },
+  "modeContrast": {
+    "message": "Yüksek kontrast"
+  },
+  "modeOff": {
+    "message": "Kapalı"
+  },
+  "settingsTooltip": {
+    "message": "Ayarlar"
+  },
+  "helpTooltip": {
+    "message": "Yardım"
+  },
+  "settingsTitle": {
+    "message": "Diğer siteler için varsayılan mod"
+  },
+  "settingsHint": {
+    "message": "Kendi seçimi olmayan tüm sitelerde geçerlidir"
+  },
+  "helpAuto": {
+    "message": "Rahat: koyu renkleri otomatik açığa çevirir, sitenin kendi görünümünü korur."
+  },
+  "helpContrast": {
+    "message": "Yüksek kontrast: siyah-beyaz mod, beyaz zemin siyah metin. Rahat kötü görünürse bunu kullanın."
+  },
+  "helpOff": {
+    "message": "Kapalı: bu site normal görünümüne döner."
+  },
+  "helpDefault": {
+    "message": "Varsayılan: Ayarlar'dan (dişli simgesi) değiştirilir. Kendi seçimi olmayan tüm sitelerde geçerlidir."
+  },
+  "shortcutsLink": {
+    "message": "Klavye kısayolları"
+  },
+  "promoLine": {
+    "message": "PlainApp — yazarın açık kaynak uygulaması: telefonunuzu tarayıcıdan yönetin"
+  },
+  "langAuto": {
+    "message": "Tarayıcıyı izle"
+  },
+  "langLabel": {
+    "message": "Dil"
+  }
+}

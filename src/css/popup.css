@@ -12,7 +12,7 @@
 
 body {
     margin: 0;
-    width: 320px;
+    width: 340px;
     font: 14px/1.45 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     color: var(--ink);
     background: var(--paper);
@@ -110,6 +110,23 @@ main {
 
 .help-panel .seg { margin: 6px 0 8px; }
 .help-panel .seg button { padding: 7px 4px; }
+
+/* language picker: 18 options — a dropdown, not segmented buttons */
+.lang-select {
+    width: 100%;
+    margin: 6px 0 8px;
+    padding: 7px 8px;
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    background: var(--paper);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.lang-select:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 
 .panel-title { font-weight: 600; }
 .panel-hint { color: var(--muted); }

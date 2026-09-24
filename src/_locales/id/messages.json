@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "Asisten Web E-ink"
+  },
+  "extDesc": {
+    "message": "Membuat semua situs terbaca di layar e-ink: tema gelap otomatis menjadi terang."
+  },
+  "appName": {
+    "message": "Asisten Web E-ink"
+  },
+  "thisSite": {
+    "message": "Situs ini tampil sebagai"
+  },
+  "modeAuto": {
+    "message": "Nyaman"
+  },
+  "modeContrast": {
+    "message": "Kontras tinggi"
+  },
+  "modeOff": {
+    "message": "Mati"
+  },
+  "settingsTooltip": {
+    "message": "Pengaturan"
+  },
+  "helpTooltip": {
+    "message": "Bantuan"
+  },
+  "settingsTitle": {
+    "message": "Mode bawaan untuk situs lain"
+  },
+  "settingsHint": {
+    "message": "Berlaku untuk semua situs tanpa pilihan sendiri"
+  },
+  "helpAuto": {
+    "message": "Nyaman: warna gelap diubah terang otomatis, tampilan situs tetap dipertahankan."
+  },
+  "helpContrast": {
+    "message": "Kontras tinggi: mode hitam-putih, latar putih teks hitam. Pakai saat Nyaman tampak salah."
+  },
+  "helpOff": {
+    "message": "Mati: situs ini kembali normal."
+  },
+  "helpDefault": {
+    "message": "Bawaan: ubah di Pengaturan (ikon roda gigi). Berlaku untuk semua situs tanpa pilihan sendiri."
+  },
+  "shortcutsLink": {
+    "message": "Pintasan keyboard"
+  },
+  "promoLine": {
+    "message": "PlainApp — aplikasi sumber terbuka dari pembuatnya: kelola ponsel dari peramban"
+  },
+  "langAuto": {
+    "message": "Ikuti peramban"
+  },
+  "langLabel": {
+    "message": "Bahasa"
+  }
+}

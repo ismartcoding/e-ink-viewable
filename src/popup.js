@@ -12,9 +12,14 @@ const i18n = {
     },
     async load(lang) {
         if (!lang) return key => chrome.i18n.getMessage(key)
-        const url = chrome.runtime.getURL(`_locales/${lang}/messages.json`)
-        const messages = await (await fetch(url)).json()
-        return key => (messages[key] && messages[key].message) || chrome.i18n.getMessage(key)
+        try {
+            const url = chrome.runtime.getURL(`_locales/${lang}/messages.json`)
+            const messages = await (await fetch(url)).json()
+            return key => (messages[key] && messages[key].message) || chrome.i18n.getMessage(key)
+        } catch {
+            // unknown/removed locale: fall back to the browser language
+            return key => chrome.i18n.getMessage(key)
+        }
     }
 }
 
@@ -25,6 +30,7 @@ const service = Toggle.createToggleService({
 const ui = PopupUi.createPopupUi({
     service,
     i18n,
+    browserLang: chrome.i18n.getUILanguage(),
     getActiveTab: async () => {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
         return (tabs && tabs[0]) || null
@@ -32,11 +38,13 @@ const ui = PopupUi.createPopupUi({
     sendMessage: (tabId, message) => chrome.tabs.sendMessage(tabId, message),
     openPage: url => chrome.tabs.create({ url }),
     el: {
+        root: document.documentElement,
         appTitle: document.getElementById('app-title'),
         siteLabel: document.getElementById('site-label'),
         siteModeButtons: [...document.querySelectorAll('#site-modes button')],
         defaultModeButtons: [...document.querySelectorAll('#default-modes button')],
-        languageButtons: [...document.querySelectorAll('#lang-modes button')],
+        languageSelect: document.getElementById('lang-select'),
+        langAutoOption: document.querySelector('#lang-select option[value=""]'),
         langLabel: document.getElementById('lang-label'),
         settings: document.getElementById('settings'),
         settingsPanel: document.getElementById('settings-panel'),

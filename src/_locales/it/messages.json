@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "Web in e-ink"
+  },
+  "extDesc": {
+    "message": "Rende legibile ogni sito sull'e-ink: i temi scuri diventano chiari automaticamente."
+  },
+  "appName": {
+    "message": "Assistente web per e-ink"
+  },
+  "thisSite": {
+    "message": "Questo sito si visualizza come"
+  },
+  "modeAuto": {
+    "message": "Comodo"
+  },
+  "modeContrast": {
+    "message": "Alto contrasto"
+  },
+  "modeOff": {
+    "message": "Disattivato"
+  },
+  "settingsTooltip": {
+    "message": "Impostazioni"
+  },
+  "helpTooltip": {
+    "message": "Aiuto"
+  },
+  "settingsTitle": {
+    "message": "Modalità predefinita per gli altri siti"
+  },
+  "settingsHint": {
+    "message": "Vale per tutti i siti senza una scelta propria"
+  },
+  "helpAuto": {
+    "message": "Comodo: trasforma automaticamente i colori scuri in chiari, mantenendo l'aspetto del sito."
+  },
+  "helpContrast": {
+    "message": "Alto contrasto: modalità in bianco e nero, sfondo bianco e testo nero. Usala quando Comodo non si vede bene."
+  },
+  "helpOff": {
+    "message": "Disattivato: questo sito torna normale."
+  },
+  "helpDefault": {
+    "message": "Predefinita: si cambia in Impostazioni (ingranaggio). Vale per tutti i siti senza una scelta propria."
+  },
+  "shortcutsLink": {
+    "message": "Scorciatoie da tastiera"
+  },
+  "promoLine": {
+    "message": "PlainApp, l'app open source dell'autore: gestisci il telefono dal browser"
+  },
+  "langAuto": {
+    "message": "Automatico"
+  },
+  "langLabel": {
+    "message": "Lingua"
+  }
+}

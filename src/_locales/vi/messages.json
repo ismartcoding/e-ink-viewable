@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "Trợ lý web mực điện tử"
+  },
+  "extDesc": {
+    "message": "Giúp mọi trang web đọc được trên màn hình mực điện tử: giao diện tối tự động thành sáng."
+  },
+  "appName": {
+    "message": "Trợ lý web mực điện tử"
+  },
+  "thisSite": {
+    "message": "Trang này hiển thị ở chế độ"
+  },
+  "modeAuto": {
+    "message": "Dễ chịu"
+  },
+  "modeContrast": {
+    "message": "Tương phản cao"
+  },
+  "modeOff": {
+    "message": "Tắt"
+  },
+  "settingsTooltip": {
+    "message": "Cài đặt"
+  },
+  "helpTooltip": {
+    "message": "Trợ giúp"
+  },
+  "settingsTitle": {
+    "message": "Chế độ mặc định cho trang khác"
+  },
+  "settingsHint": {
+    "message": "Áp dụng cho mọi trang không có lựa chọn riêng"
+  },
+  "helpAuto": {
+    "message": "Dễ chịu: tự động biến màu tối thành sáng, giữ nguyên hình thức trang web."
+  },
+  "helpContrast": {
+    "message": "Tương phản cao: chế độ đen trắng, nền trắng chữ đen. Dùng khi Dễ chịu hiển thị sai."
+  },
+  "helpOff": {
+    "message": "Tắt: trang này trở về như bình thường."
+  },
+  "helpDefault": {
+    "message": "Mặc định: đổi trong Cài đặt (biểu tượng bánh răng). Áp dụng cho mọi trang không có lựa chọn riêng."
+  },
+  "shortcutsLink": {
+    "message": "Phím tắt"
+  },
+  "promoLine": {
+    "message": "PlainApp — ứng dụng mã nguồn mở của tác giả: quản lý điện thoại từ trình duyệt"
+  },
+  "langAuto": {
+    "message": "Theo trình duyệt"
+  },
+  "langLabel": {
+    "message": "Ngôn ngữ"
+  }
+}

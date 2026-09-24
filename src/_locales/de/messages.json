@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "E-Ink Web-Anzeige"
+  },
+  "extDesc": {
+    "message": "Macht jede Website auf E-Ink-Displays lesbar: dunkle Designs werden automatisch hell."
+  },
+  "appName": {
+    "message": "E-Ink Web-Assistent"
+  },
+  "thisSite": {
+    "message": "Diese Seite wird angezeigt als"
+  },
+  "modeAuto": {
+    "message": "Komfort"
+  },
+  "modeContrast": {
+    "message": "Hoher Kontrast"
+  },
+  "modeOff": {
+    "message": "Aus"
+  },
+  "settingsTooltip": {
+    "message": "Einstellungen"
+  },
+  "helpTooltip": {
+    "message": "Hilfe"
+  },
+  "settingsTitle": {
+    "message": "Standard für andere Websites"
+  },
+  "settingsHint": {
+    "message": "Gilt für alle Websites ohne eigene Wahl"
+  },
+  "helpAuto": {
+    "message": "Komfort: dunkle Farben werden automatisch hell, das Aussehen der Seite bleibt möglichst erhalten."
+  },
+  "helpContrast": {
+    "message": "Hoher Kontrast: Schwarz-Weiß-Modus, weißer Grund, schwarzer Text. Nutzen, wenn Komfort schlecht aussieht."
+  },
+  "helpOff": {
+    "message": "Aus: diese Seite erscheint wieder normal."
+  },
+  "helpDefault": {
+    "message": "Standard: in den Einstellungen (Zahnrad) änderbar. Gilt für alle Websites ohne eigene Wahl."
+  },
+  "shortcutsLink": {
+    "message": "Tastenkürzel"
+  },
+  "promoLine": {
+    "message": "PlainApp, die Open-Source-App des Autors: Verwalte dein Handy im Browser"
+  },
+  "langAuto": {
+    "message": "Automatisch"
+  },
+  "langLabel": {
+    "message": "Sprache"
+  }
+}

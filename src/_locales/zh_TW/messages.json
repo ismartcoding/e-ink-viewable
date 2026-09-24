@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "墨水屏網頁助手"
+  },
+  "extDesc": {
+    "message": "讓所有網站在電子墨水屏上可讀：深色主題自動變淺色。"
+  },
+  "appName": {
+    "message": "墨水屏網頁助手"
+  },
+  "thisSite": {
+    "message": "這個網站顯示為"
+  },
+  "modeAuto": {
+    "message": "舒適"
+  },
+  "modeContrast": {
+    "message": "強對比"
+  },
+  "modeOff": {
+    "message": "關閉"
+  },
+  "settingsTooltip": {
+    "message": "設定"
+  },
+  "helpTooltip": {
+    "message": "說明"
+  },
+  "settingsTitle": {
+    "message": "其他網站的預設模式"
+  },
+  "settingsHint": {
+    "message": "沒有單獨設定過的網站都照這個來"
+  },
+  "helpAuto": {
+    "message": "舒適：自動把深色調成淺色，盡量保持網站原貌。"
+  },
+  "helpContrast": {
+    "message": "強對比：黑白模式，白底黑字。舒適顯示不對時用它。"
+  },
+  "helpOff": {
+    "message": "關閉：這個網站恢復原樣。"
+  },
+  "helpDefault": {
+    "message": "預設模式：在設定（齒輪）裡改，對所有沒單獨設定的網站生效。"
+  },
+  "shortcutsLink": {
+    "message": "快速鍵設定"
+  },
+  "promoLine": {
+    "message": "作者的開源應用 PlainApp · 用瀏覽器管理手機"
+  },
+  "langAuto": {
+    "message": "跟隨瀏覽器"
+  },
+  "langLabel": {
+    "message": "語言"
+  }
+}

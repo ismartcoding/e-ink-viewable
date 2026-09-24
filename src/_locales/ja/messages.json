@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "電子ペーパー表示アシスタント"
+  },
+  "extDesc": {
+    "message": "あらゆるウェブサイトを電子ペーパーで読みやすく：ダークテーマを自動でライトに変換します。"
+  },
+  "appName": {
+    "message": "電子ペーパー表示アシスタント"
+  },
+  "thisSite": {
+    "message": "このサイトの表示モード"
+  },
+  "modeAuto": {
+    "message": "快適"
+  },
+  "modeContrast": {
+    "message": "高コントラスト"
+  },
+  "modeOff": {
+    "message": "オフ"
+  },
+  "settingsTooltip": {
+    "message": "設定"
+  },
+  "helpTooltip": {
+    "message": "ヘルプ"
+  },
+  "settingsTitle": {
+    "message": "他のサイトの既定モード"
+  },
+  "settingsHint": {
+    "message": "個別設定していないサイトはこれに従います"
+  },
+  "helpAuto": {
+    "message": "快適：ダークカラーを自動でライトに変換し、サイトの見た目をできるだけ保ちます。"
+  },
+  "helpContrast": {
+    "message": "高コントラスト：白背景・黒文字の白黒モード。快適で表示が崩れるときに使います。"
+  },
+  "helpOff": {
+    "message": "オフ：このサイトは元の表示に戻ります。"
+  },
+  "helpDefault": {
+    "message": "既定モード：設定（歯車）から変更でき、個別設定のないすべてのサイトに適用されます。"
+  },
+  "shortcutsLink": {
+    "message": "キーボードショートカット"
+  },
+  "promoLine": {
+    "message": "開発者のオープンソースアプリ PlainApp · ブラウザからスマホを管理"
+  },
+  "langAuto": {
+    "message": "ブラウザに合わせる"
+  },
+  "langLabel": {
+    "message": "言語"
+  }
+}
