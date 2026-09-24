@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "E-ink Viewable"
+  },
+  "extDesc": {
+    "message": "Make every website readable on e-ink: dark themes become light automatically."
+  },
+  "appName": {
+    "message": "E-ink Web Assistant"
+  },
+  "thisSite": {
+    "message": "This website renders as"
+  },
+  "modeAuto": {
+    "message": "Comfort"
+  },
+  "modeContrast": {
+    "message": "High contrast"
+  },
+  "modeOff": {
+    "message": "Off"
+  },
+  "settingsTooltip": {
+    "message": "Settings"
+  },
+  "helpTooltip": {
+    "message": "Help"
+  },
+  "settingsTitle": {
+    "message": "Default for other sites"
+  },
+  "settingsHint": {
+    "message": "Applies to every site without its own choice"
+  },
+  "helpAuto": {
+    "message": "Comfort: turns dark colors light automatically, keeping the site's own look."
+  },
+  "helpContrast": {
+    "message": "High contrast: black-and-white mode — white background, black text. Use it when Comfort looks wrong."
+  },
+  "helpOff": {
+    "message": "Off: this site goes back to normal."
+  },
+  "helpDefault": {
+    "message": "Default: change it in Settings (gear icon). It applies to every site without its own choice."
+  },
+  "shortcutsLink": {
+    "message": "Keyboard shortcuts"
+  },
+  "promoLine": {
+    "message": "PlainApp — the author's open-source app: manage your phone from a browser"
+  },
+  "langAuto": {
+    "message": "Auto"
+  },
+  "langLabel": {
+    "message": "Language"
+  }
+}

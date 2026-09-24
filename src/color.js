@@ -5,7 +5,9 @@
 // The rule everywhere is "change as little as possible": a color is rewritten
 // only when it was clearly designed for a dark background and would break on
 // white. Anything else (links, accents, mid grays, light pages) keeps the
-// page's own color.
+// page's own color. Borders are the one exception: every border that paints
+// goes black so outlines stay visible on the flipped white — only transparent
+// ones (spacing tricks) keep their color.
 
 // AERT perceived brightness: 0 (black) – 255 (white).
 function brightness(color) {
@@ -52,6 +54,8 @@ function hue(token) {
 function clamp01(c) {
     return c < 0 ? 0 : c > 1 ? 1 : c
 }
+
+const LIGHT_BORDER = 170
 
 function srgbToLinear(c) {
     return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
@@ -197,7 +201,6 @@ function parseColor(text) {
 const DARK = 128        // backgrounds darker than this get flipped to white
 const MIN_ALPHA = 0.5   // nearly transparent colors are decorative, leave them
 const LIGHT_TEXT = 165  // text lighter than this was meant for a dark background
-const LIGHT_BORDER = 170
 
 // 'rgb(13, 17, 23)' → '#fff'; a translucent dark overlay keeps its translucency.
 function newBackgroundColor(backgroundColor) {
@@ -227,6 +230,25 @@ function newFillColor(fill) {
     const c = parseColor(fill)
     if (!c || c.a < MIN_ALPHA || brightness(c) <= LIGHT_TEXT) return null
     return 'currentColor'
+}
+
+// Contrast mode keeps a page's shadows — on e-ink they read as soft gray —
+// but a colored one is invisible there, so it is blackened in place. Offsets,
+// blur, spread and inset keywords survive, a translucent shadow keeps its
+// alpha (only the hue changes), and shadows that are already black or gone
+// stay. Comfort mode leaves every shadow alone; the contrast pass in
+// engine.js is the only caller.
+function newBoxShadow(boxShadow) {
+    const text = String(boxShadow || '')
+    if (!text || text === 'none') return null
+    let changed = false
+    const rewritten = text.replace(COLOR_TOKEN_RE, token => {
+        const c = parseColor(token)
+        if (!c || c.a <= 0 || (c.r === 0 && c.g === 0 && c.b === 0)) return token
+        changed = true
+        return c.a >= 1 ? '#000' : `rgba(0, 0, 0, ${c.a})`
+    })
+    return changed ? rewritten : null
 }
 
 // Dark gradients become flat white; light gradients and url() backgrounds
@@ -280,6 +302,7 @@ const EinkColor = {
     newTextColor,
     newBorderColor,
     newFillColor,
+    newBoxShadow,
     hasDarkGradient,
     backgroundKind,
     backgroundShade,

@@ -1,13 +1,49 @@
 // Popup UI behavior: which mode is selected in every state, what each click
-// does, and when the settings/help panels show. The DOM elements, the mode
-// service and the tab access are injected, so tests drive it on fake
-// elements (tests/popup-ui.test.js); popup.js is only the chrome.* wiring.
+// does, and when the settings/help panels show. All visible text comes from
+// the injected i18n service (chrome.i18n + storage in popup.js, a fake in
+// tests), so the user can switch language from the settings panel. The DOM
+// elements, the mode service and the tab access are injected, so tests drive
+// it on fake elements (tests/popup-ui.test.js); popup.js is only chrome glue.
 
-function createPopupUi({ service, getActiveTab, sendMessage, openPage, el }) {
+function createPopupUi({ service, i18n, getActiveTab, sendMessage, openPage, el }) {
     let siteMode = null // 'auto' | 'contrast' | 'off'; null = not a web page
     let defaultMode = 'auto'
     let settingsOpen = false
     let helpOpen = false
+    let lang = ''      // '' = follow the browser
+    let t = () => ''
+
+    function applyText() {
+        el.appTitle.textContent = t('appName')
+        el.siteLabel.textContent = t('thisSite')
+        const modeLabels = {
+            auto: t('modeAuto'),
+            contrast: t('modeContrast'),
+            off: t('modeOff')
+        }
+        for (const button of [...el.siteModeButtons, ...el.defaultModeButtons]) {
+            button.textContent = modeLabels[button.dataset.mode]
+        }
+        el.langLabel.textContent = t('langLabel')
+        for (const button of el.languageButtons) {
+            // language names stay in their own language, by convention
+            button.textContent = button.dataset.lang === 'en' ? 'English'
+                : button.dataset.lang === 'zh_CN' ? '中文'
+                : t('langAuto')
+        }
+        el.settingsTitle.textContent = t('settingsTitle')
+        el.settingsHint.textContent = t('settingsHint')
+        el.helpAuto.textContent = t('helpAuto')
+        el.helpContrast.textContent = t('helpContrast')
+        el.helpOff.textContent = t('helpOff')
+        el.helpDefault.textContent = t('helpDefault')
+        el.settings.title = t('settingsTooltip')
+        el.settings.setAttribute('aria-label', t('settingsTooltip'))
+        el.help.title = t('helpTooltip')
+        el.help.setAttribute('aria-label', t('helpTooltip'))
+        el.shortcuts.textContent = t('shortcutsLink')
+        el.promo.textContent = t('promoLine')
+    }
 
     function render() {
         for (const button of el.siteModeButtons) {
@@ -16,6 +52,9 @@ function createPopupUi({ service, getActiveTab, sendMessage, openPage, el }) {
         }
         for (const button of el.defaultModeButtons) {
             button.classList.toggle('selected', button.dataset.mode === defaultMode)
+        }
+        for (const button of el.languageButtons) {
+            button.classList.toggle('selected', button.dataset.lang === lang)
         }
         el.settingsPanel.hidden = !settingsOpen
         el.helpPanel.hidden = !helpOpen
@@ -53,6 +92,16 @@ function createPopupUi({ service, getActiveTab, sendMessage, openPage, el }) {
         })
     }
 
+    for (const button of el.languageButtons) {
+        button.addEventListener('click', async () => {
+            lang = button.dataset.lang
+            await i18n.saveLang(lang)
+            t = await i18n.load(lang)
+            applyText()
+            render()
+        })
+    }
+
     el.settings.addEventListener('click', () => {
         settingsOpen = !settingsOpen
         settingsOpen && (helpOpen = false) // one panel at a time
@@ -71,6 +120,9 @@ function createPopupUi({ service, getActiveTab, sendMessage, openPage, el }) {
     })
 
     async function init() {
+        lang = await i18n.getSavedLang()
+        t = await i18n.load(lang)
+        applyText()
         const tab = await getActiveTab()
         siteMode = tab ? await service.getSiteMode(tab.url) : null
         defaultMode = await service.getDefaultMode()

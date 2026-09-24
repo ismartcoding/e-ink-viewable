@@ -1,11 +1,11 @@
-/* 墨水屏偏好：白底黑字、高对比，不用深色背景和大面积灰块。 */
+/* E-ink preference: black on white, high contrast, no dark backgrounds or large gray blocks. */
 
 :root {
     --ink: #000;
     --paper: #fff;
-    --line: #d6d6d1;   /* 分隔线 */
-    --soft: #f4f4ef;   /* 选中底色，接近白 */
-    --muted: #444;     /* 次要文字 */
+    --line: #d6d6d1;   /* divider line */
+    --soft: #f4f4ef;   /* selected background, near white */
+    --muted: #444;     /* secondary text */
 }
 
 * { box-sizing: border-box; }
@@ -69,7 +69,7 @@ main {
     color: var(--muted);
 }
 
-/* 本网站的三段选择器 */
+/* the three-way selector for this site */
 
 .seg {
     display: flex;
@@ -94,7 +94,7 @@ main {
 .seg button.selected { background: var(--ink); color: var(--paper); }
 .seg button:disabled { opacity: 0.45; cursor: default; }
 
-/* 帮助 / 设置面板 */
+/* help / settings panel */
 
 .help-panel {
     margin-bottom: 14px;

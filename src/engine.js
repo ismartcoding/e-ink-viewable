@@ -62,23 +62,113 @@ const TRANSITION_PROPS = new Set([
 const RECHECK_GRACE_MS = 30 // transition end + slack before re-reading
 const RECHECK_MAX_MS = 2000 // never wait longer, even for long transitions
 
-// Mode B (强对比): black-and-white mode — white background, black text, no
-// analysis and no exceptions. One wildcard stylesheet wins over every site
-// rule (!important), and because the rules match inside shadow roots it
-// also covers what the per-node engine cannot reach. Shadows are dropped
-// (borders carry the structure) and media is grayscaled; photos keep their
-// shapes while everything reads black on white.
+// Mode B (Contrast): black-and-white mode — white background, black text, no
+// analysis and no exceptions. The triple :not(#eink) raises specificity to
+// three IDs, so the rules out-rank any site rule short of an ID-carrying
+// !important — a plain * would lose to every site !important out there.
+// Because the wildcard matches inside shadow roots, this also covers what
+// the per-node engine cannot reach. The shorthand background clears
+// gradients/images, so nothing dark can sit behind the forced black text;
+// <img> media keeps its colors. border-color and box-shadow are deliberately
+// NOT forced here: CSS cannot tell a transparent border (spacing, alignment —
+// Google's search box reserves 8px with one) or a black shadow from a colored
+// one, and blanket rules would paint solid black bars or delete every shadow.
+// The contrast pass below fixes both per element — colored borders and
+// shadows turn black, transparent borders and black shadows stay.
 const CONTRAST_TEXT = `
-html { color-scheme: light !important; background-color: #fff !important; }
-*, *::before, *::after {
-  background-color: #fff !important;
+html { color-scheme: light !important; background: #fff !important; }
+*:not(#eink):not(#eink):not(#eink),
+*:not(#eink):not(#eink):not(#eink)::before,
+*:not(#eink):not(#eink):not(#eink)::after {
+  background: #fff !important;
   color: #000 !important;
-  border-color: #000 !important;
   caret-color: #000 !important;
   text-shadow: none !important;
-  box-shadow: none !important;
+}`
+
+// Mode B borders and shadows: colored borders go black, transparent ones
+// stay — CSS cannot tell them apart, so a small pass reads each element once
+// and only writes where a border actually paints. Batching follows the same
+// discipline as the engine (read the whole batch, then write). A border
+// side counts as colored when its alpha is at least half; everything
+// fainter reads as decorative transparency. Colored box-shadows are
+// blackened in place (newBoxShadow keeps their alpha); black ones and
+// 'none' stay, so shadows survive contrast mode instead of being dropped.
+const BORDER_OPAQUE = 0.5
+const BORDER_SIDES = ['Top', 'Right', 'Bottom', 'Left']
+
+function createContrastPass(C, { styles, schedule, batchSize = 400 }) {
+    const seen = new WeakSet()
+    const queue = new Set()
+    let scheduled = false
+
+    function drain() {
+        const batch = []
+        for (const el of queue) {
+            queue.delete(el)
+            seen.add(el)
+            batch.push(el)
+            if (batch.length >= batchSize) break
+        }
+
+        // read phase: widths gate the borders, the shadow color is its own gate
+        const plans = []
+        for (const el of batch) {
+            const cs = styles(el)
+            const shadow = C.newBoxShadow(cs.boxShadow)
+            let width = 0
+            for (const side of BORDER_SIDES) width += parseFloat(cs['border' + side + 'Width']) || 0
+            if (!width && !shadow) continue
+            const writes = []
+            if (width) {
+                for (const side of BORDER_SIDES) {
+                    const c = C.parseColor(cs['border' + side + 'Color'])
+                    if (c && c.a >= BORDER_OPAQUE) writes.push(['border-' + side.toLowerCase() + '-color', '#000'])
+                }
+            }
+            if (shadow) writes.push(['box-shadow', shadow])
+            if (writes.length) plans.push([el, writes])
+        }
+
+        // write phase: inline !important wins over any site rule; colors and
+        // shadows only repaint, they never reflow
+        for (const [el, writes] of plans) {
+            for (const [prop, value] of writes) el.style.setProperty(prop, value, 'important')
+        }
+
+        if (queue.size) schedule(drain)
+        else scheduled = false
+    }
+
+    function scan(el) {
+        if (el.nodeType !== 1 || seen.has(el) || queue.has(el)) return
+        const tag = el.tagName.toLowerCase()
+        if (SKIP_TAGS.has(tag)) return
+        if (el.ownerSVGElement || tag === 'svg') return // svg paints with fill/stroke, not CSS borders
+        queue.add(el)
+        if (!scheduled) {
+            scheduled = true
+            schedule(drain)
+        }
+    }
+
+    function scanTree(root) {
+        scan(root)
+        if (root.querySelectorAll) {
+            for (const el of root.querySelectorAll('*')) scan(el)
+        }
+    }
+
+    function onMutations(mutationList) {
+        for (const mutation of mutationList) {
+            for (const node of mutation.addedNodes) {
+                if (node.nodeType === 1) scanTree(node)
+            }
+        }
+    }
+
+    return { scanTree, onMutations }
 }
-img, picture, video, canvas { filter: grayscale(1); }`
 
 function createEngine(C, { styles, schedule, applyCss = () => {}, batchSize = 300, delay = () => undefined, cancelDelay = () => {} }) {
     const seen = new WeakSet()
@@ -468,7 +558,7 @@ function createEngine(C, { styles, schedule, applyCss = () => {}, batchSize = 30
     return { enqueue, enqueueTree, enqueueMutations, applyPointerTarget, applyFormChange }
 }
 
-const EinkEngine = { createEngine, STYLE_TEXT, CONTRAST_TEXT, SKIP_TAGS, NO_TEXT_TAGS, SVG_SHAPES, MAX_HOVER_CHAIN }
+const EinkEngine = { createEngine, createContrastPass, STYLE_TEXT, CONTRAST_TEXT, SKIP_TAGS, NO_TEXT_TAGS, SVG_SHAPES, MAX_HOVER_CHAIN }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = EinkEngine

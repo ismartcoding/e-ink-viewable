@@ -95,6 +95,18 @@ test('svg paint: white flips to currentColor, colored icons are kept', () => {
     assert.strictEqual(C.newFillColor('none'), null)
 })
 
+test('box-shadows: colored ones turn black in place, black ones and none stay', () => {
+    assert.strictEqual(C.newBoxShadow('none'), null)
+    assert.strictEqual(C.newBoxShadow(''), null)
+    assert.strictEqual(C.newBoxShadow(undefined), null)
+    assert.strictEqual(C.newBoxShadow('rgba(0, 0, 0, 0.1) 0px 1px 3px 0px'), null) // already black
+    assert.strictEqual(C.newBoxShadow('rgb(0, 0, 0) 0px 0px 0px 1px inset'), null) // black inset
+    assert.strictEqual(C.newBoxShadow('rgb(255, 0, 0) 0px 4px 12px 0px'), '#000 0px 4px 12px 0px')
+    assert.strictEqual(C.newBoxShadow('rgba(59, 130, 246, 0.3) 0px 4px 12px 0px'), 'rgba(0, 0, 0, 0.3) 0px 4px 12px 0px') // alpha kept
+    assert.strictEqual(C.newBoxShadow('oklch(0.7 0.15 250) 0px 0px 8px'), '#000 0px 0px 8px') // tailwind v4 palette
+    assert.strictEqual(C.newBoxShadow('rgba(59, 130, 246, 0.3) 0px 4px 12px 0px, rgb(0, 0, 0) 0px 1px 2px 0px inset'), 'rgba(0, 0, 0, 0.3) 0px 4px 12px 0px, rgb(0, 0, 0) 0px 1px 2px 0px inset')
+})
+
 test('gradientAverageBrightness classifies gradient text paint', () => {
     const light = C.gradientAverageBrightness('linear-gradient(rgb(255, 255, 255), rgb(255, 214, 236))')
     assert.ok(light > 200, 'light gradient avg > 200, got ' + light)

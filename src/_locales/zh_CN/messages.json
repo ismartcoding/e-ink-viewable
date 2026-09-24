@@ -1,0 +1,59 @@
+{
+  "extName": {
+    "message": "墨水屏网页助手"
+  },
+  "extDesc": {
+    "message": "让所有网站在墨水屏上可读：深色主题自动变浅色。"
+  },
+  "appName": {
+    "message": "墨水屏网页助手"
+  },
+  "thisSite": {
+    "message": "这个网站显示为"
+  },
+  "modeAuto": {
+    "message": "舒适"
+  },
+  "modeContrast": {
+    "message": "强对比"
+  },
+  "modeOff": {
+    "message": "关闭"
+  },
+  "settingsTooltip": {
+    "message": "设置"
+  },
+  "helpTooltip": {
+    "message": "帮助"
+  },
+  "settingsTitle": {
+    "message": "其他网站的默认模式"
+  },
+  "settingsHint": {
+    "message": "没有单独设置过的网站都按这个来"
+  },
+  "helpAuto": {
+    "message": "舒适：自动把深色调成浅色，尽量保持网站原貌。"
+  },
+  "helpContrast": {
+    "message": "强对比：黑白模式，白底黑字。舒适显示不对时用它。"
+  },
+  "helpOff": {
+    "message": "关闭：这个网站恢复原样。"
+  },
+  "helpDefault": {
+    "message": "默认模式：在设置（齿轮）里改，对所有没单独设置的网站生效。"
+  },
+  "shortcutsLink": {
+    "message": "快捷键设置"
+  },
+  "promoLine": {
+    "message": "作者的开源应用 PlainApp · 用浏览器管理手机"
+  },
+  "langAuto": {
+    "message": "跟随浏览器"
+  },
+  "langLabel": {
+    "message": "语言"
+  }
+}

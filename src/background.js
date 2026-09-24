@@ -6,7 +6,7 @@
 importScripts('toggle.js')
 
 const service = Toggle.createToggleService({
-    storage: { local: chrome.storage.local, sync: chrome.storage.sync }
+    storage: { local: chrome.storage.local }
 })
 
 async function toggleActiveTab() {
@@ -22,7 +22,3 @@ async function toggleActiveTab() {
 chrome.commands.onCommand.addListener(command => {
     if (command === 'toggle-ink-style') toggleActiveTab()
 })
-
-chrome.runtime.onInstalled.addListener(() => service.migrateLegacy())
-chrome.runtime.onStartup.addListener(() => service.migrateLegacy())
-service.migrateLegacy()

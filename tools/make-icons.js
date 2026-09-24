@@ -1,5 +1,7 @@
-// 生成扩展图标：纸白圆角底 + 墨黑对比圆（左暗右亮 = 暗色转亮色）。
-// 纯 Node 无依赖，SDF 光栅化 + 超采样抗锯齿。运行：node tools/make-icons.js
+// Generate the extension icon: paper-white rounded square with a centered
+// circle (ink-black left half, paper-white right half = dark turning light),
+// no border. Pure Node, no dependencies: SDF rasterization + supersampled
+// anti-aliasing. Run: node tools/make-icons.js
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
@@ -47,7 +49,8 @@ const PAPER = [0xF6, 0xF3, 0xEC];
 const INK = [0x1B, 0x19, 0x17];
 const WHITE = [0xFF, 0xFF, 0xFF];
 
-// 512 设计空间：圆角方 + 中心圆 r=150（描边 22），左半墨黑、右半纸白
+// 512 design space: rounded square + centered circle r=150, left half
+// ink-black, right half paper-white
 function sample(px, py) {
   const dx = Math.abs(px - 256) - (256 - 116);
   const dy = Math.abs(py - 256) - (256 - 116);
@@ -56,7 +59,6 @@ function sample(px, py) {
   if (dBox > 0) return null;
 
   const dC = Math.hypot(px - 256, py - 256) - 150;
-  if (Math.abs(dC) <= 11) return INK;
   if (dC <= 0) return px < 256 ? INK : WHITE;
   return PAPER;
 }

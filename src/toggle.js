@@ -15,7 +15,6 @@
 const SITE_PREFIX = 'i:'
 const LAST_PREFIX = 'l:'
 const DEFAULT_KEY = 'd:all'
-const PAUSE_ALL_KEY = 'p:all'
 const MODES = ['auto', 'contrast', 'off']
 
 function siteKey(url) {
@@ -81,39 +80,7 @@ function createToggleService({ storage }) {
         return restore
     }
 
-    // One-time carry from the pre-1.4 storage: per-site 1/0 pause flags on
-    // the sync and local backends, 'p:all' global pause. 1 → 'off', 0 →
-    // removed (follow the default). Returns how many keys were migrated.
-    async function migrateLegacy() {
-        const sync = storage.sync ? await storage.sync.get(null) : {}
-        const local = await storage.local.get(null)
-        const writes = {}
-        const removes = []
-        let count = 0
-        const carry = key => {
-            if (local[key] === 1 || sync[key] === 1) {
-                writes[key] = 'off' // same key, new semantics
-                count++
-            } else if (local[key] === 0) {
-                removes.push(key) // 0 meant on → follow the default now
-                count++
-            }
-        }
-        for (const key of Object.keys(sync || {})) if (key.startsWith(SITE_PREFIX)) carry(key)
-        for (const key of Object.keys(local || {})) if (key.startsWith(SITE_PREFIX)) carry(key)
-        // The old global pause becomes the default mode 'off' — the settings
-        // panel controls it now, and a single site can still override it.
-        if (local[PAUSE_ALL_KEY] !== undefined) {
-            if (local[PAUSE_ALL_KEY] === 1) writes[DEFAULT_KEY] = 'off'
-            removes.push(PAUSE_ALL_KEY)
-            count++
-        }
-        if (Object.keys(writes).length) await storage.local.set(writes)
-        if (removes.length) await storage.local.remove(removes)
-        return count
-    }
-
-    return { getSiteMode, setSiteMode, getDefaultMode, setDefaultMode, toggleShortcut, migrateLegacy }
+    return { getSiteMode, setSiteMode, getDefaultMode, setDefaultMode, toggleShortcut }
 }
 
 const Toggle = { SITE_PREFIX, DEFAULT_KEY, siteKey, isWebUrl, createToggleService }

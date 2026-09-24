@@ -62,6 +62,29 @@
         const styleEl = document.createElement('style')
         styleEl.textContent = globalThis.EinkEngine.CONTRAST_TEXT
         document.documentElement.appendChild(styleEl)
+        // observers must stay referenced or Chrome garbage-collects them
+        const keepAlive = []
+        // Heavy SPAs (railway.com, twitch.tv) scrub unknown style elements
+        // after hydration — put ours back the moment anything removes it.
+        // Observing only <html>'s direct children keeps this quiet: it fires
+        // a handful of times per page, never per frame.
+        const observer = new MutationObserver(() => {
+            if (!styleEl.isConnected) document.documentElement.appendChild(styleEl)
+        })
+        observer.observe(document.documentElement, { childList: true })
+        keepAlive.push(observer)
+        // Borders and shadows: CSS cannot tell a colored border or shadow
+        // from a transparent one or a black one, so each element is scanned
+        // once, batched like the engine; nodes added later are picked up by
+        // the same observer.
+        const pass = globalThis.EinkEngine.createContrastPass(globalThis.EinkColor, {
+            styles: el => window.getComputedStyle(el),
+            schedule: callback => window.requestAnimationFrame(callback)
+        })
+        pass.scanTree(document.documentElement)
+        const passObserver = new MutationObserver(mutations => pass.onMutations(mutations))
+        passObserver.observe(document.documentElement, { childList: true, subtree: true })
+        keepAlive.push(passObserver)
     }
 
     service.getSiteMode(window.location.href).then(mode => {

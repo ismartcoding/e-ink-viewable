@@ -35,7 +35,7 @@ function style(overrides = {}) {
         backgroundColor: 'rgba(0, 0, 0, 0)',
         backgroundImage: 'none',
         color: 'rgb(51, 51, 51)',
-        borderColor: 'rgb(0, 0, 0)',
+        borderColor: 'rgba(0, 0, 0, 0)', // no border
         fill: 'none',
         stroke: 'none',
         caretColor: 'auto',
@@ -101,6 +101,23 @@ test('text: near-white flips to black at 165, grays and links are kept', () => {
     assert.deepEqual(recorder.props(svgIcon), { fill: 'currentColor', stroke: 'currentColor' })
 })
 
+test('borders: near-invisible ones darken to black, visible ones stay', () => {
+    const { recorder, engine, scheduler, table } = setup()
+    const lightBordered = el(recorder, 'div')
+    const darkBordered = el(recorder, 'div')
+    const transparent = el(recorder, 'div')
+    table.set(lightBordered, style({ borderColor: 'rgb(208, 215, 222)' }))
+    table.set(darkBordered, style({ borderColor: 'rgb(48, 54, 61)' }))
+    table.set(transparent, style({ borderColor: 'rgba(0, 0, 0, 0)' }))
+
+    engine.enqueueTree(makeRoot(lightBordered, [lightBordered, darkBordered, transparent]))
+    scheduler.runAll()
+
+    assert.deepEqual(recorder.props(lightBordered), { 'border-color': '#000' })
+    assert.deepEqual(recorder.props(darkBordered), {}) // dark border stays
+    assert.deepEqual(recorder.props(transparent), {}) // transparent: spacing trick
+})
+
 test('inputs and editable areas get a visible caret, imgs never get text writes', () => {
     const { recorder, engine, scheduler, table } = setup()
     const input = el(recorder, 'input')
@@ -164,7 +181,7 @@ test('over a background image text, borders and svg paints keep the page color',
     scheduler.runAll()
 
     assert.deepEqual(recorder.props(banner), {}) // transparent bg over image: nothing to write
-    assert.deepEqual(recorder.props(h1), {}) // white text stays readable on the photo
+    assert.deepEqual(recorder.props(h1), {}) // white text and border stay as chosen for the photo
     assert.deepEqual(recorder.props(icon), {})
     assert.deepEqual(recorder.props(card), {}) // already white
     assert.deepEqual(recorder.props(cardText), {}) // mid gray: kept anyway
@@ -628,11 +645,311 @@ test('STYLE_TEXT carries the color-only rules', () => {
 })
 
 test('CONTRAST style: forces white backgrounds with black text everywhere', () => {
-    assert.match(Engine.CONTRAST_TEXT, /\*[^{]*{[^}]*background-color:\s*#fff !important/)
+    assert.match(Engine.CONTRAST_TEXT, /\*:not\(#eink\):not\(#eink\):not\(#eink\)[^{]*{[^}]*background:\s*#fff !important/)
     assert.match(Engine.CONTRAST_TEXT, /color:\s*#000 !important/)
-    assert.match(Engine.CONTRAST_TEXT, /border-color:\s*#000 !important/)
+    assert.match(Engine.CONTRAST_TEXT, /::before/) // pseudo-element decorations covered
     assert.match(Engine.CONTRAST_TEXT, /color-scheme:\s*light/)
-    assert.match(Engine.CONTRAST_TEXT, /grayscale\(1\)/) // media goes grayscale too
+    // media keeps its own colors — grayscaling it buys nothing on e-ink
+    assert.doesNotMatch(Engine.CONTRAST_TEXT, /grayscale|filter/)
+    // transparent borders are intentional (spacing tricks) — never forced black
+    assert.doesNotMatch(Engine.CONTRAST_TEXT, /border-color/)
+    // shadows survive contrast mode; the pass blackens the colored ones
+    assert.doesNotMatch(Engine.CONTRAST_TEXT, /box-shadow/)
     assert.doesNotMatch(Engine.CONTRAST_TEXT, /invert/)
     assert.doesNotMatch(Engine.CONTRAST_TEXT, /width:|margin:|padding:/) // color-only, no layout
+})
+
+test('hover: transition delay counts into the re-check time', () => {
+    const { recorder, engine, scheduler, table, delays } = setup()
+    const link = el(recorder, 'a')
+    table.set(link, style({
+        color: 'rgb(255, 255, 255)',
+        transitionProperty: 'color',
+        transitionDuration: '0.2s',
+        transitionDelay: '0.5s'
+    }))
+
+    engine.enqueueTree(makeRoot(link, [link]))
+    scheduler.runAll()
+    engine.applyPointerTarget(link)
+
+    assert.equal(delays.length, 1)
+    assert.equal(delays[0].ms, 730) // 200ms duration + 500ms delay + 30ms grace
+})
+
+test('hover: durations are matched per property, irrelevant ones ignored', () => {
+    const { recorder, engine, scheduler, table, delays } = setup()
+    const link = el(recorder, 'a')
+    table.set(link, style({
+        color: 'rgb(255, 255, 255)',
+        transitionProperty: 'transform, color',
+        transitionDuration: '5s, 0.2s'
+    }))
+
+    engine.enqueueTree(makeRoot(link, [link]))
+    scheduler.runAll()
+    engine.applyPointerTarget(link)
+
+    assert.equal(delays.length, 1)
+    assert.equal(delays[0].ms, 230) // color's 0.2s, not transform's 5s
+})
+
+test('transition re-check waits at most two seconds', () => {
+    const { recorder, engine, scheduler, table, delays } = setup()
+    const link = el(recorder, 'a')
+    table.set(link, style({
+        color: 'rgb(255, 255, 255)',
+        transitionProperty: 'color',
+        transitionDuration: '10s'
+    }))
+
+    engine.enqueueTree(makeRoot(link, [link]))
+    scheduler.runAll()
+    engine.applyPointerTarget(link)
+
+    assert.equal(delays.length, 1)
+    assert.equal(delays[0].ms, 2000)
+})
+
+test('a landed fix re-arms the element for future transition races', () => {
+    const { recorder, engine, scheduler, table, delays } = setup()
+    const link = el(recorder, 'a')
+    // gray at load: kept, nothing written, no race armed
+    table.set(link, style({ color: 'rgb(152, 152, 159)', transitionProperty: 'color', transitionDuration: '0.25s' }))
+    engine.enqueueTree(makeRoot(link, [link]))
+    scheduler.runAll()
+
+    // first hover: reads gray (transition start) → arms the re-check
+    engine.applyPointerTarget(link)
+    assert.equal(delays.length, 1)
+
+    // the hover color lands → the re-check writes the fix (clearing the arm)
+    table.set(link, style({ color: 'rgb(255, 255, 255)', transitionProperty: 'color', transitionDuration: '0.25s' }))
+    delays[0].fn()
+    scheduler.runAll()
+    assert.deepEqual(recorder.props(link), { color: '#000' })
+
+    // a second race on the same element arms again
+    table.set(link, style({ color: 'rgb(152, 152, 159)', transitionProperty: 'color', transitionDuration: '0.25s' }))
+    engine.applyPointerTarget(link)
+    assert.equal(delays.length, 2)
+
+    // and once the fix is in, no more timers stack up
+    delays[1].fn()
+    scheduler.runAll()
+    engine.applyPointerTarget(link)
+    assert.equal(delays.length, 2)
+})
+
+test('form change on a detached control is a safe no-op', () => {
+    const { recorder, engine, scheduler } = setup()
+    const lone = el(recorder, 'input') // no parentElement
+
+    engine.applyFormChange(lone)
+
+    assert.equal(scheduler.frames.length, 0)
+    assert.equal(recorder.reads().length, 0)
+})
+
+test('attribute changes on skipped tags schedule nothing', () => {
+    const { recorder, engine, scheduler } = setup()
+    const script = el(recorder, 'script')
+
+    engine.enqueueMutations([{ type: 'attributes', target: script, addedNodes: [] }])
+
+    assert.equal(scheduler.frames.length, 0)
+    assert.equal(recorder.reads().length, 0)
+})
+
+test('a changed pseudo rule is appended after its identical predecessor is skipped', () => {
+    const { recorder, engine, scheduler, table, css } = setup()
+    const btn = el(recorder, 'a')
+    table.set(btn, style({ color: 'rgb(255, 255, 255)' }))
+    btn._pseudo = { '::after': style({ backgroundColor: 'rgb(22, 23, 29)' }) }
+    engine.enqueueTree(makeRoot(btn, [btn]))
+    scheduler.runAll()
+    assert.equal(css.length, 1)
+
+    // the overlay gains white text: the rule text differs, so a new rule lands
+    btn._pseudo['::after'] = style({ backgroundColor: 'rgb(22, 23, 29)', color: 'rgb(255, 255, 255)' })
+    engine.enqueueMutations([{ type: 'attributes', target: btn, addedNodes: [] }])
+    scheduler.runAll()
+
+    assert.equal(css.length, 2)
+    assert.match(css[1], /color:#000!important/)
+})
+
+// ---- Mode B contrast pass: colored borders and shadows go black, the rest stay ----
+
+function borderSetup() {
+    const recorder = createRecorder()
+    const table = new Map()
+    const scheduler = createScheduler()
+    const pass = Engine.createContrastPass(C, {
+        styles: createStyles(recorder, table),
+        schedule: scheduler.schedule
+    })
+    return { recorder, scheduler, table, pass }
+}
+
+test('borders: opaque colored sides go black, every side on its own', () => {
+    const { recorder, scheduler, table, pass } = borderSetup()
+    const box = el(recorder, 'div')
+    table.set(box, style({
+        borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)',
+        borderRightWidth: '1px', borderRightColor: 'rgb(255, 255, 255)',
+        borderBottomWidth: '8px', borderBottomColor: 'rgb(51, 51, 51)',
+        borderLeftWidth: '1px', borderLeftColor: 'rgb(255, 255, 255)'
+    }))
+
+    pass.scanTree(makeRoot(box, [box]))
+    scheduler.runAll()
+
+    assert.deepEqual(recorder.props(box), {
+        'border-top-color': '#000',
+        'border-right-color': '#000',
+        'border-bottom-color': '#000', // dark but colored: still forced black
+        'border-left-color': '#000'
+    })
+})
+
+test('borders: the transparent spacing trick is left untouched', () => {
+    // Google's search box: a fat transparent border used purely as spacing
+    const { recorder, scheduler, table, pass } = borderSetup()
+    const box = el(recorder, 'div')
+    table.set(box, style({
+        borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)',
+        borderBottomWidth: '8px', borderBottomColor: 'rgba(0, 0, 0, 0)'
+    }))
+
+    pass.scanTree(makeRoot(box, [box]))
+    scheduler.runAll()
+
+    assert.deepEqual(recorder.props(box), { 'border-top-color': '#000' })
+})
+
+test('borders: faint translucent sides read as decorative and stay', () => {
+    const { recorder, scheduler, table, pass } = borderSetup()
+    const box = el(recorder, 'div')
+    table.set(box, style({
+        borderTopWidth: '1px', borderTopColor: 'rgba(255, 255, 255, 0.05)',
+        borderBottomWidth: '1px', borderBottomColor: 'rgba(255, 255, 255, 0.6)'
+    }))
+
+    pass.scanTree(makeRoot(box, [box]))
+    scheduler.runAll()
+
+    assert.deepEqual(recorder.props(box), { 'border-bottom-color': '#000' })
+})
+
+test('borders: zero-width borders mean nothing to paint, nothing written', () => {
+    const { recorder, scheduler, table, pass } = borderSetup()
+    const box = el(recorder, 'div')
+    table.set(box, style({
+        borderTopWidth: '0px', borderTopColor: 'rgb(255, 255, 255)',
+        borderLeftWidth: '0px', borderLeftColor: 'rgb(255, 255, 255)'
+    }))
+
+    pass.scanTree(makeRoot(box, [box]))
+    scheduler.runAll()
+
+    assert.equal(recorder.reads().length, 1) // element inspected once
+    assert.equal(recorder.writes().length, 0)
+})
+
+test('borders: batched like the engine, reads before writes, one frame at a time', () => {
+    const recorder = createRecorder()
+    const table = new Map()
+    const scheduler = createScheduler()
+    const pass = Engine.createContrastPass(C, {
+        styles: createStyles(recorder, table),
+        schedule: scheduler.schedule,
+        batchSize: 2
+    })
+    const boxes = []
+    for (let i = 0; i < 5; i++) {
+        const box = el(recorder, 'div')
+        table.set(box, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
+        boxes.push(box)
+    }
+
+    pass.scanTree(makeRoot(boxes[0], boxes))
+    assert.equal(scheduler.frames.length, 1)
+
+    scheduler.runFrame()
+    assert.equal(recorder.writes().length, 2)
+    assert.equal(scheduler.frames.length, 1)
+
+    scheduler.runFrame()
+    scheduler.runFrame()
+    assert.equal(recorder.writes().length, 5)
+    assert.equal(scheduler.frames.length, 0)
+})
+
+test('borders: nodes added later are scanned, skipped tags are not', () => {
+    const { recorder, scheduler, table, pass } = borderSetup()
+    const added = el(recorder, 'div')
+    const child = el(recorder, 'p', { parent: added })
+    const script = el(recorder, 'script', { parent: added })
+    table.set(added, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
+    table.set(child, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
+    table.set(script, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
+
+    pass.onMutations([{ addedNodes: [makeRoot(added, [child, script])] }])
+    assert.equal(scheduler.frames.length, 1)
+    scheduler.runAll()
+
+    assert.deepEqual(recorder.props(added), { 'border-top-color': '#000' })
+    assert.deepEqual(recorder.props(child), { 'border-top-color': '#000' })
+    assert.equal(recorder.writes().filter(w => w[1] === script).length, 0)
+})
+
+test('borders: an element is inspected exactly once even when scanned twice', () => {
+    const { recorder, scheduler, table, pass } = borderSetup()
+    const box = el(recorder, 'div')
+    table.set(box, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
+
+    pass.scanTree(makeRoot(box, [box]))
+    scheduler.runAll()
+    const readsAfterFirst = recorder.reads().length
+
+    pass.scanTree(makeRoot(box, [box]))
+    scheduler.runAll()
+
+    assert.equal(recorder.reads().length, readsAfterFirst)
+})
+
+test('shadows: colored ones turn black in place, black ones and none stay', () => {
+    // borderless cards — the shadow alone gets them scanned
+    const { recorder, scheduler, table, pass } = borderSetup()
+    const glow = el(recorder, 'div')
+    const soft = el(recorder, 'div')
+    const plain = el(recorder, 'div')
+    table.set(glow, style({ boxShadow: 'rgb(59, 130, 246) 0px 4px 12px 0px' }))
+    table.set(soft, style({ boxShadow: 'rgba(59, 130, 246, 0.3) 0px 4px 12px 0px' }))
+    table.set(plain, style({ boxShadow: 'rgba(0, 0, 0, 0.1) 0px 1px 3px 0px' }))
+
+    pass.scanTree(makeRoot(glow, [glow, soft, plain]))
+    scheduler.runAll()
+
+    assert.deepEqual(recorder.props(glow), { 'box-shadow': '#000 0px 4px 12px 0px' })
+    assert.deepEqual(recorder.props(soft), { 'box-shadow': 'rgba(0, 0, 0, 0.3) 0px 4px 12px 0px' }) // alpha kept
+    assert.deepEqual(recorder.props(plain), {}) // already black: nothing to write
+})
+
+test('shadows: borders and shadows on one element are fixed together', () => {
+    const { recorder, scheduler, table, pass } = borderSetup()
+    const card = el(recorder, 'div')
+    table.set(card, style({
+        borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)',
+        boxShadow: 'rgb(59, 130, 246) 0px 4px 12px 0px'
+    }))
+
+    pass.scanTree(makeRoot(card, [card]))
+    scheduler.runAll()
+
+    assert.deepEqual(recorder.props(card), {
+        'border-top-color': '#000',
+        'box-shadow': '#000 0px 4px 12px 0px'
+    })
 })

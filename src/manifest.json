@@ -1,7 +1,8 @@
 {
-  "name": "E-ink Viewable",
-  "description": "Make all websites viewable in e-ink screen, convert dark theme to light theme automatically.",
-  "version": "1.4.6",
+  "name": "__MSG_extName__",
+  "description": "__MSG_extDesc__",
+  "version": "1.5.4",
+  "default_locale": "en",
   "manifest_version": 3,
   "icons": {
     "16": "icons/icon_16.png",
@@ -10,7 +11,7 @@
     "128": "icons/icon_128.png"
   },
   "action": {
-    "default_title": "E-ink Viewable",
+    "default_title": "__MSG_extName__",
     "default_icon": {
       "16": "icons/icon_16.png",
       "24": "icons/icon_24.png",
