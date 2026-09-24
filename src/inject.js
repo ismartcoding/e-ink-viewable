@@ -109,10 +109,15 @@
         }
     }
 
-    service.getSiteMode(window.location.href).then(mode => {
-        if (mode === 'off') return
-        if (mode === 'contrast') return startContrast()
-        startAuto()
+    // The master switch (issue #4): '0' keeps every mode off the page, for
+    // reading on regular monitors without disabling the extension itself.
+    service.getEnabled().then(enabled => {
+        if (!enabled) return
+        service.getSiteMode(window.location.href).then(mode => {
+            if (mode === 'off') return
+            if (mode === 'contrast') return startContrast()
+            startAuto()
+        })
     })
 
     chrome.runtime.onMessage.addListener(request => {

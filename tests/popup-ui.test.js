@@ -40,6 +40,8 @@ function setup({ local = {}, activeUrl = 'https://a.com/page', browserLang = 'en
     const el = {
         root: makeButton('root'),
         appTitle: { textContent: '' },
+        enabledLabel: { textContent: '' },
+        enabledToggle: makeButton('enabledToggle'),
         siteLabel: { textContent: '' },
         langLabel: { textContent: '' },
         languageSelect: {
@@ -122,6 +124,7 @@ test('init: every visible text comes from the translate function', async () => {
     await ui.init()
 
     assert.equal(el.appTitle.textContent, 't:appName')
+    assert.equal(el.enabledLabel.textContent, 't:enabledLabel')
     assert.equal(el.siteLabel.textContent, 't:thisSite')
     assert.equal(el.siteModeButtons[0].textContent, 't:modeAuto')
     assert.equal(el.siteModeButtons[1].textContent, 't:modeContrast')
@@ -275,4 +278,38 @@ test('shortcuts link opens the Chrome shortcuts page', async () => {
     clicks.shortcuts({ preventDefault: () => { prevented = true } })
     assert.deepEqual(opened, ['chrome://extensions/shortcuts'])
     assert.equal(prevented, true)
+})
+
+test('master switch: off disables the site modes, on re-enables, persists', async () => {
+    const { el, clicks, localData, sent, ui } = setup({ local: { 'i:a.com': 'contrast' } })
+    await ui.init()
+    assert.equal(el.enabledToggle.attrs['aria-checked'], 'true')
+    assert.equal(selected(el.siteModeButtons[1]), true) // contrast selected and usable
+
+    await clicks.enabledToggle()
+    assert.equal(localData.enabled, '0')
+    assert.equal(el.enabledToggle.attrs['aria-checked'], 'false')
+    assert.equal(el.siteModeButtons.every(b => b.disabled), true)
+    assert.deepEqual(sent, [[7, 'reload']])
+
+    await clicks.enabledToggle()
+    assert.equal(el.enabledToggle.attrs['aria-checked'], 'true')
+    assert.equal(el.siteModeButtons.every(b => !b.disabled), true)
+})
+
+test('a stored master-off starts the popup with modes disabled', async () => {
+    const { el, ui } = setup({ local: { enabled: '0' } })
+    await ui.init()
+
+    assert.equal(el.enabledToggle.attrs['aria-checked'], 'false')
+    assert.equal(el.siteModeButtons.every(b => b.disabled), true)
+})
+
+test('weight: a stored weight key is ignored, empty segments selected', async () => {
+    const { el, ui } = setup({ local: { weight: 'bold' } })
+    await ui.init()
+
+    // the weight feature was removed; stale storage must not break anything
+    assert.equal(el.weightButtons, undefined)
+    assert.equal(selected(el.siteModeButtons[0]), true)
 })

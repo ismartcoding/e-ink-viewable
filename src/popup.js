@@ -40,6 +40,8 @@ const ui = PopupUi.createPopupUi({
     el: {
         root: document.documentElement,
         appTitle: document.getElementById('app-title'),
+        enabledLabel: document.getElementById('enabled-label'),
+        enabledToggle: document.getElementById('enabled-toggle'),
         siteLabel: document.getElementById('site-label'),
         siteModeButtons: [...document.querySelectorAll('#site-modes button')],
         defaultModeButtons: [...document.querySelectorAll('#default-modes button')],

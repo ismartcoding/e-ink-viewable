@@ -55,5 +55,8 @@
   },
   "langLabel": {
     "message": "ภาษา"
+  },
+  "enabledLabel": {
+    "message": "เปิดใช้"
   }
 }

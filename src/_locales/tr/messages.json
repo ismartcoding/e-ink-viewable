@@ -55,5 +55,8 @@
   },
   "langLabel": {
     "message": "Dil"
+  },
+  "enabledLabel": {
+    "message": "Etkin"
   }
 }

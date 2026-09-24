@@ -55,5 +55,8 @@
   },
   "langLabel": {
     "message": "Lingua"
+  },
+  "enabledLabel": {
+    "message": "Attivato"
   }
 }

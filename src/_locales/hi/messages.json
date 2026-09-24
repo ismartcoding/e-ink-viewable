@@ -55,5 +55,8 @@
   },
   "langLabel": {
     "message": "भाषा"
+  },
+  "enabledLabel": {
+    "message": "सक्रिय"
   }
 }

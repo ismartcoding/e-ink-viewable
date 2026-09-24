@@ -55,5 +55,8 @@
   },
   "langLabel": {
     "message": "言語"
+  },
+  "enabledLabel": {
+    "message": "拡張機能を有効化"
   }
 }

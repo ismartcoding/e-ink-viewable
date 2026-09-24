@@ -55,5 +55,8 @@
   },
   "langLabel": {
     "message": "語言"
+  },
+  "enabledLabel": {
+    "message": "啟用擴充功能"
   }
 }

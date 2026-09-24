@@ -55,5 +55,8 @@
   },
   "langLabel": {
     "message": "Язык"
+  },
+  "enabledLabel": {
+    "message": "Включено"
   }
 }

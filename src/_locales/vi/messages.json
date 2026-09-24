@@ -55,5 +55,8 @@
   },
   "langLabel": {
     "message": "Ngôn ngữ"
+  },
+  "enabledLabel": {
+    "message": "Đang bật"
   }
 }

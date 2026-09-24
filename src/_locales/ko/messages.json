@@ -55,5 +55,8 @@
   },
   "langLabel": {
     "message": "언어"
+  },
+  "enabledLabel": {
+    "message": "확장 사용"
   }
 }

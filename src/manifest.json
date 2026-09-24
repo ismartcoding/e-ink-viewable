@@ -1,7 +1,7 @@
 {
   "name": "__MSG_extName__",
   "description": "__MSG_extDesc__",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "default_locale": "en",
   "manifest_version": 3,
   "icons": {
@@ -20,7 +20,8 @@
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "commands": {
     "toggle-ink-style": {
@@ -28,6 +29,9 @@
         "default": "Ctrl+Shift+X"
       },
       "description": "Toggle ink style"
+    },
+    "toggle-enabled": {
+      "description": "Toggle the extension on every site"
     }
   },
   "content_scripts": [

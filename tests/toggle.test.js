@@ -137,3 +137,17 @@ test('toggleShortcut on a non-web page is a no-op', async () => {
     assert.equal(await service.toggleShortcut('chrome://version'), null)
     assert.deepEqual(storage.localData, {})
 })
+
+test('master switch: enabled by default, explicit off stored, round-trips', async () => {
+    const storage = fakeStorage()
+    const service = Toggle.createToggleService({ storage })
+
+    assert.equal(await service.getEnabled(), true) // absent = enabled
+
+    await service.setEnabled(false)
+    assert.equal(await service.getEnabled(), false)
+    assert.equal(storage.localData.enabled, '0') // explicit, survives storage edits
+
+    await service.setEnabled(true)
+    assert.equal(await service.getEnabled(), true)
+})

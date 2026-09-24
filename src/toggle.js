@@ -1,6 +1,9 @@
 // Per-site and global ink-style mode, storage-backed.
 //
 // Storage model:
+// - 'enabled' — the master switch: '0' = the extension stays off on every
+//   site; absent/'1' = enabled. For leaving the extension on regular
+//   monitors (issue #4).
 // - 'i:<host>' — this site's mode override: 'auto' | 'contrast' | 'off';
 //   absent = follow the default. 'off' is stored explicitly so it can
 //   override a non-off default.
@@ -15,6 +18,7 @@
 const SITE_PREFIX = 'i:'
 const LAST_PREFIX = 'l:'
 const DEFAULT_KEY = 'd:all'
+const ENABLED_KEY = 'enabled'
 const MODES = ['auto', 'contrast', 'off']
 
 function siteKey(url) {
@@ -63,6 +67,18 @@ function createToggleService({ storage }) {
         return mode
     }
 
+    // The master switch. Anything but an explicit '0' means enabled, so a
+    // deleted storage can never silently disable the extension.
+    async function getEnabled() {
+        const items = await storage.local.get(ENABLED_KEY)
+        return items[ENABLED_KEY] !== '0'
+    }
+
+    async function setEnabled(on) {
+        await storage.local.set({ [ENABLED_KEY]: on ? '1' : '0' })
+        return on
+    }
+
     // Keyboard shortcut: off ↔ whatever this site last used (else the
     // default, when it isn't off, else 'auto').
     async function toggleShortcut(url) {
@@ -80,10 +96,10 @@ function createToggleService({ storage }) {
         return restore
     }
 
-    return { getSiteMode, setSiteMode, getDefaultMode, setDefaultMode, toggleShortcut }
+    return { getSiteMode, setSiteMode, getDefaultMode, setDefaultMode, getEnabled, setEnabled, toggleShortcut }
 }
 
-const Toggle = { SITE_PREFIX, DEFAULT_KEY, siteKey, isWebUrl, createToggleService }
+const Toggle = { SITE_PREFIX, DEFAULT_KEY, ENABLED_KEY, siteKey, isWebUrl, createToggleService }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Toggle

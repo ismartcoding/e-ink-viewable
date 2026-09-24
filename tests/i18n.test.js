@@ -20,7 +20,7 @@ test('17 locales ship and en is the manifest default', () => {
 test('every locale carries the full key set with non-empty messages', () => {
     const en = JSON.parse(fs.readFileSync(path.join(localesDir, 'en/messages.json'), 'utf8'))
     const keys = Object.keys(en).sort()
-    assert.equal(keys.length, 19)
+    assert.equal(keys.length, 20)
     for (const locale of EXPECTED) {
         const messages = JSON.parse(fs.readFileSync(path.join(localesDir, locale, 'messages.json'), 'utf8'))
         assert.deepEqual(Object.keys(messages).sort(), keys, `${locale}: key set differs`)

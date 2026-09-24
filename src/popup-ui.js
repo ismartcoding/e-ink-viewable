@@ -8,6 +8,7 @@
 function createPopupUi({ service, i18n, browserLang = 'en', getActiveTab, sendMessage, openPage, el }) {
     let siteMode = null // 'auto' | 'contrast' | 'off'; null = not a web page
     let defaultMode = 'auto'
+    let enabled = true  // the master switch (issue #4)
     let settingsOpen = false
     let helpOpen = false
     let lang = ''      // '' = follow the browser
@@ -15,6 +16,7 @@ function createPopupUi({ service, i18n, browserLang = 'en', getActiveTab, sendMe
 
     function applyText() {
         el.appTitle.textContent = t('appName')
+        el.enabledLabel.textContent = t('enabledLabel')
         el.siteLabel.textContent = t('thisSite')
         const modeLabels = {
             auto: t('modeAuto'),
@@ -48,9 +50,10 @@ function createPopupUi({ service, i18n, browserLang = 'en', getActiveTab, sendMe
     }
 
     function render() {
+        el.enabledToggle.setAttribute('aria-checked', String(enabled))
         for (const button of el.siteModeButtons) {
-            button.classList.toggle('selected', siteMode !== null && button.dataset.mode === siteMode)
-            button.disabled = siteMode === null
+            button.classList.toggle('selected', enabled && siteMode !== null && button.dataset.mode === siteMode)
+            button.disabled = !enabled || siteMode === null
         }
         for (const button of el.defaultModeButtons) {
             button.classList.toggle('selected', button.dataset.mode === defaultMode)
@@ -92,17 +95,12 @@ function createPopupUi({ service, i18n, browserLang = 'en', getActiveTab, sendMe
         })
     }
 
-    for (const button of el.defaultModeButtons) {
-        button.addEventListener('click', async () => {
-            const mode = await service.setDefaultMode(button.dataset.mode)
-            if (!mode) return
-            defaultMode = mode
-            render()
-            // Sites without their own override follow the default, so the
-            // current tab always re-applies here.
-            reloadActiveTab()
-        })
-    }
+    el.enabledToggle.addEventListener('click', async () => {
+        enabled = !enabled
+        await service.setEnabled(enabled)
+        render()
+        reloadActiveTab()
+    })
 
     el.languageSelect.addEventListener('change', async () => {
         lang = el.languageSelect.value
@@ -136,6 +134,7 @@ function createPopupUi({ service, i18n, browserLang = 'en', getActiveTab, sendMe
         const tab = await getActiveTab()
         siteMode = tab ? await service.getSiteMode(tab.url) : null
         defaultMode = await service.getDefaultMode()
+        enabled = await service.getEnabled()
         render()
     }
 
