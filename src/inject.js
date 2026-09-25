@@ -84,7 +84,10 @@
         // cannot feed back. Form commits restyle siblings
         // (input:checked + label) neither observer can see.
         const pass = globalThis.EinkEngine.createContrastPass(globalThis.EinkColor, {
-            styles: el => window.getComputedStyle(el),
+            // two-arg like the engine above: a one-arg lambda silently drops
+            // the pseudo name, so every pseudo read would return the host's
+            // own styles — a painted host then blackens pseudos it never read
+            styles: (el, pseudo) => (pseudo ? window.getComputedStyle(el, pseudo) : window.getComputedStyle(el)),
             schedule: callback => window.requestAnimationFrame(callback),
             applyCss: css => styleEl.append(css)
         })

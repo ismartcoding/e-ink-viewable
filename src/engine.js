@@ -133,11 +133,14 @@ html { color-scheme: light !important; scrollbar-color: #000 #fff !important; ba
 // black text. A fully transparent element is left clear: it shows an
 // ancestor's whitened surface or the white root, and layered designs keep
 // their look. Pseudo-elements get the same per-paint read: their paints are
-// graphics (selected-tab underlines, badges), so a color or gradient turns
+// graphics (selected-tab underlines, badges), so an opaque solid color turns
 // black like a border and stays visible on the white page — blanketing them
-// white erased GitHub's accent underline — while a url() photo fill goes
-// white like a surface. Pseudo-elements cannot take inline styles, so their
-// writes become generated stylesheet rules on a data-eink-p hook attribute.
+// white erased GitHub's accent underline. Anything fainter than half-opaque
+// is a wash the site never really set and gets nothing; a pseudo
+// background-image (gradient, photo, icon) is the site's own paint and never
+// gets a color on top: the image stays untouched. Pseudo-elements cannot
+// take inline styles, so their writes become generated stylesheet rules on a
+// data-eink-p hook attribute.
 // Text the stylesheet lost — white glyph paints inside open shadow roots or
 // behind an ID-carrying !important site rule — is flipped inline with the
 // same light-paint threshold as everywhere: only what would be invisible on
@@ -149,7 +152,9 @@ html { color-scheme: light !important; scrollbar-color: #000 #fff !important; ba
 // reads as decorative transparency. Colored box-shadows are blackened in
 // place (newBoxShadow keeps their alpha); black ones and 'none' stay, so
 // shadows survive contrast mode instead of being dropped.
-const BORDER_OPAQUE = 0.5
+// Shared half-opaque bar: a border side or a pseudo background this faint
+// or fainter reads as decorative transparency, not a paint of its own.
+const OPAQUE = 0.5
 const BORDER_SIDES = ['Top', 'Right', 'Bottom', 'Left']
 const PSEUDOS = ['::before', '::after']
 // Pseudo-elements never render on these; ::placeholder exists on the first
@@ -254,9 +259,19 @@ function createContrastPass(C, { styles, schedule, applyCss = () => {}, batchSiz
             if (!NO_TEXT_TAGS.has(tag) && !FORM_TAGS.has(tag)) {
                 for (const pseudo of PSEUDOS) {
                     const pcs = styles(el, pseudo)
-                    if (!pcs || pcs.content === 'none' || !paintsBackground(pcs)) continue
-                    const photo = String(pcs.backgroundImage || '').includes('url(')
-                    pseudoPaints.push([pseudo, photo ? '#fff' : '#000'])
+                    if (!pcs || pcs.content === 'none') continue
+                    // a background-image (gradient, photo, icon) is the site's
+                    // own paint: no color ever goes on top of it, the image
+                    // stays exactly as the site drew it
+                    const image = String(pcs.backgroundImage || '')
+                    if (image !== '' && image !== 'none') continue
+                    // only a paint the site really set blackens: an opaque
+                    // background color (the border bar). Faint translucent
+                    // washes read as no background — blackening one drew a
+                    // solid black box over an element that had none.
+                    const c = C.parseColor(pcs.backgroundColor)
+                    if (!c || c.a < OPAQUE) continue
+                    pseudoPaints.push([pseudo, '#000'])
                 }
             }
             const id = el.getAttribute('data-eink-p')
@@ -269,7 +284,7 @@ function createContrastPass(C, { styles, schedule, applyCss = () => {}, batchSiz
             if (width) {
                 for (const side of BORDER_SIDES) {
                     const c = C.parseColor(cs['border' + side + 'Color'])
-                    if (c && c.a >= BORDER_OPAQUE) writes.push(['border-' + side.toLowerCase() + '-color', '#000'])
+                    if (c && c.a >= OPAQUE) writes.push(['border-' + side.toLowerCase() + '-color', '#000'])
                 }
             }
             if (shadow) writes.push(['box-shadow', shadow])
@@ -295,9 +310,12 @@ function createContrastPass(C, { styles, schedule, applyCss = () => {}, batchSiz
             for (const pseudo of PSEUDOS) {
                 const key = id + '|' + pseudo
                 const paint = pseudoPaints.find(([p]) => p === pseudo)
+                // longhand declarations only: the shorthand would wipe the
+                // pseudo's background-image as a side effect — SPA pages ship
+                // stylesheets late, so an icon can arrive after this rule
                 const rule = paint
-                    ? `[data-eink-p="${id}"]${pseudo}{background:${paint[1]}!important}`
-                    : (pseudoCss.has(key) ? `[data-eink-p="${id}"]${pseudo}{background:none!important}` : null)
+                    ? `[data-eink-p="${id}"]${pseudo}{background-color:${paint[1]}!important}`
+                    : (pseudoCss.has(key) ? `[data-eink-p="${id}"]${pseudo}{background-color:transparent!important}` : null)
                 if (!rule || pseudoCss.get(key) === rule) continue
                 pseudoCss.set(key, rule)
                 cssText += rule

@@ -914,10 +914,12 @@ test('pseudos: a painted accent indicator turns black, not white', () => {
 
     assert.deepEqual(recorder.props(item), {}) // the item itself stays clear
     assert.equal(item.attrs['data-eink-p'], '1')
-    assert.deepEqual(css, ['[data-eink-p="1"]::after{background:#000!important}'])
+    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}'])
 })
 
-test('pseudos: a url() photo fill goes white, a gradient goes black', () => {
+test('pseudos: a background-image (photo or gradient) never gets a color', () => {
+    // the image is the site's own paint: writing a color on top of it would
+    // erase the icon/photo (the background shorthand clears background-image)
     const { recorder, scheduler, table, pass, css } = borderSetup()
     const photo = el(recorder, 'div', {
         pseudo: { '::before': style({ content: '""', backgroundImage: 'url("https://x/hero.png")' }) }
@@ -925,13 +927,79 @@ test('pseudos: a url() photo fill goes white, a gradient goes black', () => {
     const gradient = el(recorder, 'div', {
         pseudo: { '::after': style({ content: '""', backgroundImage: 'linear-gradient(rgb(20, 20, 20), rgb(40, 40, 40))' }) }
     })
+    const both = el(recorder, 'div', {
+        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgb(13, 17, 23)', backgroundImage: 'url("https://x/icon.png")' }) }
+    })
 
-    pass.scanTree(makeRoot(photo, [photo, gradient]))
+    pass.scanTree(makeRoot(photo, [photo, gradient, both]))
     scheduler.runAll()
 
+    assert.deepEqual(css, []) // no rule, so no color exists to fight the image
+    assert.equal(photo.attrs['data-eink-p'], undefined)
+    assert.equal(gradient.attrs['data-eink-p'], undefined)
+    assert.equal(both.attrs['data-eink-p'], undefined)
+    assert.equal(recorder.writes().length, 0) // not even an inline write
+})
+
+test('pseudos: faint translucent washes read as no background and get nothing', () => {
+    // a few-percent rgba wash is glass decoration, not a paint the site set —
+    // blackening one drew a solid black box on an element that had none
+    const { recorder, scheduler, pass, css } = borderSetup()
+    const faintDark = el(recorder, 'div', {
+        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgba(0, 0, 0, 0.4)' }) }
+    })
+    const glassTint = el(recorder, 'div', {
+        pseudo: { '::before': style({ content: '""', backgroundColor: 'rgba(255, 255, 255, 0.05)' }) }
+    })
+    const boundary = el(recorder, 'div', {
+        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgba(253, 140, 115, 0.5)' }) }
+    })
+
+    pass.scanTree(makeRoot(faintDark, [faintDark, glassTint, boundary]))
+    scheduler.runAll()
+
+    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}']) // only the half-opaque one
+    assert.equal(faintDark.attrs['data-eink-p'], undefined)
+    assert.equal(glassTint.attrs['data-eink-p'], undefined)
+    assert.equal(recorder.writes().length, 0)
+})
+
+test('pseudos: image swap to a solid color picks the black rule up', () => {
+    // a gradient pseudo got no rule; once the site repaints it with a solid
+    // color, the accent-indicator blackening applies as usual
+    const { recorder, scheduler, pass, css } = borderSetup()
+    const item = el(recorder, 'a', {
+        pseudo: { '::after': style({ content: '""', backgroundImage: 'linear-gradient(rgb(20, 20, 20), rgb(40, 40, 40))' }) }
+    })
+    pass.scanTree(makeRoot(item, [item]))
+    scheduler.runAll()
+    assert.deepEqual(css, [])
+    assert.equal(item.attrs['data-eink-p'], undefined)
+
+    item._pseudo['::after'] = style({ content: '""', backgroundColor: 'rgb(253, 140, 115)' })
+    pass.onMutations([{ type: 'attributes', target: item, addedNodes: [] }])
+    scheduler.runAll()
+    assert.equal(item.attrs['data-eink-p'], '1')
+    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}'])
+})
+
+test('pseudos: an indicator repainted with an image gets its black rule reset', () => {
+    // the reverse swap: our black rule must not stick once the site paints
+    // an image — the sheet is append-only, so a later reset rule wins
+    const { recorder, scheduler, pass, css } = borderSetup()
+    const item = el(recorder, 'a', {
+        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgb(253, 140, 115)' }) }
+    })
+    pass.scanTree(makeRoot(item, [item]))
+    scheduler.runAll()
+    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}'])
+
+    item._pseudo['::after'] = style({ content: '""', backgroundImage: 'url("https://x/icon.png")' })
+    pass.onMutations([{ type: 'attributes', target: item, addedNodes: [] }])
+    scheduler.runAll()
     assert.deepEqual(css, [
-        '[data-eink-p="1"]::before{background:#fff!important}',
-        '[data-eink-p="2"]::after{background:#000!important}'
+        '[data-eink-p="1"]::after{background-color:#000!important}',
+        '[data-eink-p="1"]::after{background-color:transparent!important}'
     ])
 })
 
@@ -1058,7 +1126,7 @@ test('pseudos: an indicator un-painted by a class change gets a reset rule', () 
     })
     pass.scanTree(makeRoot(item, [item]))
     scheduler.runAll()
-    assert.deepEqual(css, ['[data-eink-p="1"]::after{background:#000!important}'])
+    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}'])
 
     // the site drops the accent (tab deselected): the old black rule must
     // not stick — the sheet is append-only, so a later reset rule wins
@@ -1066,8 +1134,32 @@ test('pseudos: an indicator un-painted by a class change gets a reset rule', () 
     pass.onMutations([{ type: 'attributes', target: item, addedNodes: [] }])
     scheduler.runAll()
     assert.deepEqual(css, [
-        '[data-eink-p="1"]::after{background:#000!important}',
-        '[data-eink-p="1"]::after{background:none!important}'
+        '[data-eink-p="1"]::after{background-color:#000!important}',
+        '[data-eink-p="1"]::after{background-color:transparent!important}'
+    ])
+})
+
+test('pseudos: an icon arriving after the black rule survives it (longhand only)', () => {
+    // Gmail's compose pencil: .L3::before ships its background-image in a
+    // late SPA stylesheet chunk. If our first read caught only a solid
+    // color, the rule must not erase the icon when it lands — the background
+    // shorthand did exactly that. Longhand touches background-color only.
+    const { recorder, scheduler, pass, css } = borderSetup()
+    const item = el(recorder, 'div', {
+        pseudo: { '::before': style({ content: '""', backgroundColor: 'rgb(11, 87, 208)' }) }
+    })
+    pass.scanTree(makeRoot(item, [item]))
+    scheduler.runAll()
+    assert.deepEqual(css, ['[data-eink-p="1"]::before{background-color:#000!important}'])
+
+    // the icon chunk arrives: the reset clears only our color, the image
+    // stays the site's own paint
+    item._pseudo['::before'] = style({ content: '""', backgroundImage: 'url("https://mail.google.com/create_32dp.png")' })
+    pass.onMutations([{ type: 'attributes', target: item, addedNodes: [] }])
+    scheduler.runAll()
+    assert.deepEqual(css, [
+        '[data-eink-p="1"]::before{background-color:#000!important}',
+        '[data-eink-p="1"]::before{background-color:transparent!important}'
     ])
 })
 

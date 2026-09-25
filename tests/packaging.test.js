@@ -40,3 +40,19 @@ test('the service worker imports statically — importScripts must not return', 
     assert.doesNotMatch(background, /^\s*importScripts\s*\(/m) // no runtime script loading
     assert.match(background, /^import '\.\/toggle\.js'/m)
 })
+
+test('both engines receive pseudo-aware computed styles', () => {
+    // the engine reads pseudos as styles(el, '::before'); a one-arg lambda
+    // drops the pseudo name, so every pseudo read returns the host's own
+    // styles — a painted host then blackens pseudos it never read (the
+    // Gmail compose pencil rendered as a black box). Both wirings must
+    // forward the pseudo argument to getComputedStyle.
+    const inject = fs.readFileSync(path.join(src, 'inject.js'), 'utf8')
+    const wired = [...inject.matchAll(/styles:\s*\((\w+),\s*(\w+)\)\s*=>/g)]
+    assert.equal(wired.length, 2, 'both engine wirings must take (el, pseudo)')
+    for (const [, el, pseudo] of wired) {
+        const body = inject.slice(inject.indexOf(`styles: (${el}, ${pseudo})`))
+        const arrow = body.slice(body.indexOf('=>') + 2, body.indexOf('\n'))
+        assert.match(arrow, new RegExp(`${pseudo}\\s*\\?`), `wiring must branch on the pseudo argument: ${arrow.trim()}`)
+    }
+})
