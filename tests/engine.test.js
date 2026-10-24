@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const C = require('../src/color.js')
-const Engine = require('../src/engine.js')
+const Engine = require('../src/comfort/engine.js')
 const { createRecorder, createStyles, makeRoot, createScheduler } = require('./fake-dom.js')
 
 function setup(overrides = {}) {

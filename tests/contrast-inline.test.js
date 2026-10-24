@@ -1,6 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { createInlineStyles } = require('../src/contrast-inline.js')
+const { createInlineStyles } = require('../src/high-contrast/contrast-inline.js')
 
 function fixture(initial = 'color:white!important;background-color:black!important') {
     const mutations = []

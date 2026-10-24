@@ -1,7 +1,7 @@
 {
   "name": "__MSG_extName__",
   "description": "__MSG_extDesc__",
-  "version": "1.5.20",
+  "version": "1.5.22",
   "default_locale": "en",
   "manifest_version": 3,
   "icons": {
@@ -41,11 +41,13 @@
       ],
       "js": [
         "color.js",
-        "engine.js",
-        "contrast.js",
-        "contrast-inline.js",
-        "contrast-output.js",
-        "contrast-dom.js",
+        "comfort/engine.js",
+        "high-contrast/contrast.js",
+        "high-contrast/contrast-inline.js",
+        "high-contrast/contrast-output.js",
+        "high-contrast/contrast-dom.js",
+        "comfort/start.js",
+        "high-contrast/start.js",
         "toggle.js",
         "inject.js"
       ],

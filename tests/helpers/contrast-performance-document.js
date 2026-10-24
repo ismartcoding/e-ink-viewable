@@ -1,4 +1,4 @@
-const Dom = require('../../src/contrast-dom.js')
+const Dom = require('../../src/high-contrast/contrast-dom.js')
 const { createDocument } = require('./contrast-document')
 
 function createPerformanceDocument(options) {

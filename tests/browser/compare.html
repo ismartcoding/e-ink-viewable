@@ -38,7 +38,7 @@ pre{white-space:pre-wrap}
         navigation: [...document.querySelector('nav').children].map(el => [el.tagName, el.className, el.getAttribute('aria-selected'), el.textContent]) }
     const bytes = new TextEncoder().encode(JSON.stringify(input))
     const inputHash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(value => value.toString(16).padStart(2, '0')).join('')
-    const sourceFiles = kind === 'original' ? ['color.js', 'engine.js'] : ['color.js', 'contrast.js', 'contrast-inline.js', 'contrast-output.js', 'contrast-dom.js']
+    const sourceFiles = kind === 'original' ? ['color.js', 'engine.js'] : ['color.js', 'high-contrast/contrast.js', 'high-contrast/contrast-inline.js', 'high-contrast/contrast-output.js', 'high-contrast/contrast-dom.js']
     for (const file of sourceFiles) await new Promise((resolve, reject) => {
         const script = document.createElement('script')
         script.src = new URL(file, kind === 'original' ? legacyBase : srcBase).href

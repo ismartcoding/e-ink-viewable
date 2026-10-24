@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>High contrast boundary evidence</title>
+<style>
+body { background: #fff; color: #222; font: 24px system-ui; margin: 32px; }
+section { margin-bottom: 32px; }
+nav { display: flex; gap: 16px; align-items: center; }
+a, button { font: inherit; color: #222; text-decoration: none; background: transparent; border: 0; padding: 8px; }
+button { color: #667; }
+.white { background: white; }
+.accent { color: blue; }
+.selected { background: #243978; color: white; }
+h2 { font-size: 24px; margin: 0 0 16px; }
+</style>
+<section><h2>Current location with a picker</h2><nav><a href="#repository" aria-current="page">e-ink-viewable</a><button aria-label="Switch repository">▾</button></nav></section>
+<section><h2>White background without a state</h2><nav><a class="white" href="#brand">Halfmoon AI</a><button>Menu</button></nav></section>
+<section><h2>Text color distinction</h2><nav><a class="accent" href="#posts">posts</a><a href="#tracker">tracker</a></nav></section>
+<section><h2>Actual selection</h2><nav><button class="selected" aria-selected="true">Selected</button><button>Other</button></nav></section>
+<script src="../../src/color.js"></script>
+<script src="../../src/high-contrast/contrast.js"></script>
+<script src="../../src/high-contrast/contrast-inline.js"></script>
+<script src="../../src/high-contrast/contrast-output.js"></script>
+<script src="../../src/high-contrast/contrast-dom.js"></script>
+<script src="../../src/high-contrast/start.js"></script>
+<script>EinkHighContrast.start()</script>

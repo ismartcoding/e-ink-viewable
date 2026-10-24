@@ -1,7 +1,7 @@
-const Policy = require('../../src/contrast.js')
-const Inline = require('../../src/contrast-inline.js')
+const Policy = require('../../src/high-contrast/contrast.js')
+const Inline = require('../../src/high-contrast/contrast-inline.js')
 const C = require('../../src/color.js')
-const Dom = require('../../src/contrast-dom.js')
+const Dom = require('../../src/high-contrast/contrast-dom.js')
 
 function createDocument({ batchSize = 192 } = {}) {
     const frames = [], observers = [], events = new WeakMap()

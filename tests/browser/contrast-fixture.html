@@ -29,7 +29,7 @@ button svg{width:16px;height:16px;fill:currentColor}
 <section class="panel"><button id="data">Data state</button><button class="row" id="large" aria-selected="true">Large selected row</button></section>
 <input id="masked-field" value="Masked text" style="mask-image:linear-gradient(to left,transparent,white 10%);color:#123;background:transparent"><header id="blurred-header" style="background:rgba(32,40,64,.9);color:white;backdrop-filter:blur(16px)">Glass toolbar</header>
 <div id="checks">Running…</div>
-<script src="../../src/color.js"></script><script src="../../src/contrast.js"></script><script src="../../src/contrast-inline.js"></script><script src="../../src/contrast-output.js"></script><script src="../../src/contrast-dom.js"></script>
+<script src="../../src/color.js"></script><script src="../../src/high-contrast/contrast.js"></script><script src="../../src/high-contrast/contrast-inline.js"></script><script src="../../src/high-contrast/contrast-output.js"></script><script src="../../src/high-contrast/contrast-dom.js"></script>
 <script>
 const size=Number(new URLSearchParams(parent.location.search).get('large')||0)
 let periodic, initialPhase=true

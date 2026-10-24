@@ -4,9 +4,9 @@ const crypto = require('node:crypto')
 const root = path.resolve(__dirname, '..')
 const initialHashes = { source: treeHash(path.join(root, 'src')), tests: treeHash(path.join(root, 'tests')) }
 const C = require('../src/color')
-const Policy = require('../src/contrast')
-const Dom = require('../src/contrast-dom')
-const Inline = require('../src/contrast-inline')
+const Policy = require('../src/high-contrast/contrast')
+const Dom = require('../src/high-contrast/contrast-dom')
+const Inline = require('../src/high-contrast/contrast-inline')
 const { createDocument } = require('../tests/helpers/contrast-document')
 
 const keys = ['styleReads', 'mainStyleReads', 'pseudoStyleReads', 'rectReads', 'queryCalls', 'queryNodeResults',

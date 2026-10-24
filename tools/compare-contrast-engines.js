@@ -20,14 +20,17 @@ const idleTicks = option('--idle-ticks', '12,120').split(',').map(Number)
 const reconciliationRotations = Number(option('--max-reconciliation-rotations', '2'))
 const output = option('--output', '')
 const digest = value => crypto.createHash('sha256').update(value).digest('hex')
-const files = ['color.js', 'contrast.js', 'contrast-dom.js', 'contrast-inline.js', 'contrast-output.js', 'manifest.json']
+const files = ['color.js', 'high-contrast/contrast.js', 'high-contrast/contrast-dom.js', 'high-contrast/contrast-inline.js', 'high-contrast/contrast-output.js', 'manifest.json']
 const frozen = fs.mkdtempSync(path.join(os.tmpdir(), 'eink-contrast-comparison-'))
 const snapshot = Object.fromEntries(files.map(name => [name, fs.readFileSync(path.join(sourcePath, name))]))
-for (const [name, data] of Object.entries(snapshot)) fs.writeFileSync(path.join(frozen, name), data)
+for (const [name, data] of Object.entries(snapshot)) {
+    fs.mkdirSync(path.dirname(path.join(frozen, name)), { recursive: true })
+    fs.writeFileSync(path.join(frozen, name), data)
+}
 const C = require(path.join(frozen, 'color.js'))
-const Policy = require(path.join(frozen, 'contrast.js'))
-const Dom = require(path.join(frozen, 'contrast-dom.js'))
-const Inline = require(path.join(frozen, 'contrast-inline.js'))
+const Policy = require(path.join(frozen, 'high-contrast/contrast.js'))
+const Dom = require(path.join(frozen, 'high-contrast/contrast-dom.js'))
+const Inline = require(path.join(frozen, 'high-contrast/contrast-inline.js'))
 function legacyModule(name) {
     const source = execFileSync('git', ['show', `${oldRef}:src/${name}.js`], { cwd: root, encoding: 'utf8' })
     const context = vm.createContext({ module: { exports: {} } })

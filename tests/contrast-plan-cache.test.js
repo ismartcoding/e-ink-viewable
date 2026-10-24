@@ -2,7 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const vm = require('node:vm')
-const Dom = require('../src/contrast-dom')
+const Dom = require('../src/high-contrast/contrast-dom')
 const { createDocument } = require('./helpers/contrast-document')
 
 test('a local selection update does not copy the full page plan cache', () => {
@@ -15,9 +15,9 @@ test('a local selection update does not copy the full page plan cache', () => {
     }
     const context = { module: { exports: {} }, Map: CountedMap, require: name => {
         assert.equal(name, './contrast-output.js')
-        return require('../src/contrast-output')
+        return require('../src/high-contrast/contrast-output')
     } }
-    vm.runInNewContext(fs.readFileSync(require.resolve('../src/contrast-dom'), 'utf8'), context)
+    vm.runInNewContext(fs.readFileSync(require.resolve('../src/high-contrast/contrast-dom'), 'utf8'), context)
     const original = Dom.createContrastEngine
     Dom.createContrastEngine = context.module.exports.createContrastEngine
     let f

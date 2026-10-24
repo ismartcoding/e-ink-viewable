@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const C = require('../src/color')
-const Policy = require('../src/contrast')
+const Policy = require('../src/high-contrast/contrast')
 const { createDocument } = require('./helpers/contrast-document')
 const { createPerformanceDocument } = require('./helpers/contrast-performance-document')
 
@@ -24,9 +24,9 @@ for (const background of ['rgba(11, 16, 14, 0.82)', clear]) {
         const plans = Policy.createPlanner(C).plan([root, header, label])
         assert.equal(plans.get(header.node).protected, false)
         assert.equal(plans.get(label.node).protected, false)
-        assert.equal(plans.get(header.node).rules['']['background-color'], '#fff')
+        assert.equal(plans.get(header.node).rules['']['background-color'], background === clear ? undefined : '#fff')
         assert.equal(plans.get(label.node).rules[''].color, '#000')
-        assert.equal(plans.get(header.node).rules['']['backdrop-filter'], undefined)
+        assert.equal(plans.get(header.node).rules['']['backdrop-filter'], 'none')
     })
 }
 
@@ -52,14 +52,15 @@ test('DOM conversion makes a glass toolbar white, updates its source and restore
     header.source['background-color'] = 'rgba(24, 32, 40, 0.6)'
     f.engine.invalidate(header); f.flush()
     assert.equal(f.painted(header)['background-color'], '#fff')
-    assert.equal(f.painted(header)['backdrop-filter'], 'blur(10px)')
+    assert.equal(f.painted(header)['backdrop-filter'], 'none')
     header.source['background-color'] = clear
     header.source['backdrop-filter'] = 'none'
     f.engine.invalidate(header); f.flush()
     assert.equal(f.painted(header)['background-color'], clear)
     header.source['backdrop-filter'] = 'blur(10px)'
     f.engine.invalidate(header); f.flush()
-    assert.equal(f.painted(header)['background-color'], '#fff')
+    assert.equal(f.painted(header)['background-color'], clear)
+    assert.equal(f.painted(header)['backdrop-filter'], 'none')
     f.engine.stop()
     assert.equal(f.painted(header)['background-color'], clear)
     assert.equal(f.painted(header)['backdrop-filter'], 'blur(10px)')

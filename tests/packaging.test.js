@@ -47,7 +47,7 @@ test('both engines receive pseudo-aware computed styles', () => {
     // styles — a painted host then blackens pseudos it never read (the
     // Gmail compose pencil rendered as a black box). Both wirings must
     // forward the pseudo argument to getComputedStyle.
-    const inject = fs.readFileSync(path.join(src, 'inject.js'), 'utf8')
+    const inject = ['comfort/start.js', 'high-contrast/start.js'].map(file => fs.readFileSync(path.join(src, file), 'utf8')).join('\n')
     const wired = [...inject.matchAll(/styles:\s*\((\w+),\s*(\w+)\)\s*=>/g)]
     assert.equal(wired.length, 2, 'both engine wirings must take (el, pseudo)')
     for (const [, el, pseudo] of wired) {
@@ -55,4 +55,28 @@ test('both engines receive pseudo-aware computed styles', () => {
         const arrow = body.slice(body.indexOf('=>') + 2, body.indexOf('\n'))
         assert.match(arrow, new RegExp(`${pseudo}\\s*\\?`), `wiring must branch on the pseudo argument: ${arrow.trim()}`)
     }
+})
+
+for (const [mode, expected] of [['auto', 'comfort'], ['contrast', 'high-contrast'], ['off', null]]) test(`manifest scripts load and dispatch ${mode} without starting the other engine`, async () => {
+    const vm = require('node:vm')
+    const calls = []
+    const context = vm.createContext({ URL, chrome: {
+        storage: { local: { get: async () => ({ 'd:all': mode }) } },
+        runtime: { onMessage: { addListener() {} } }
+    }, window: { location: { href: 'https://example.com/' } } })
+    const manifest = JSON.parse(fs.readFileSync(path.join(src, 'manifest.json'), 'utf8'))
+    const scripts = manifest.content_scripts.flatMap(script => script.js)
+    for (const file of scripts) {
+        if (file === 'inject.js') {
+            assert.equal(typeof context.EinkEngine.createEngine, 'function')
+            assert.equal(typeof context.EinkContrastDom.createContrastEngine, 'function')
+            assert.equal(typeof context.EinkComfort.start, 'function')
+            assert.equal(typeof context.EinkHighContrast.start, 'function')
+            context.EinkComfort.start = () => calls.push('comfort')
+            context.EinkHighContrast.start = () => calls.push('high-contrast')
+        }
+        vm.runInContext(fs.readFileSync(path.join(src, file), 'utf8'), context, { filename: file })
+    }
+    await new Promise(resolve => setImmediate(resolve))
+    assert.deepEqual(calls, expected ? [expected] : [])
 })

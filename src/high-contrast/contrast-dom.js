@@ -145,6 +145,7 @@
         const structuralChanges = new Set()
         const inheritedChanges = new Set()
         const interacted = new WeakSet()
+        let textContentCache = new WeakMap()
         const cleanups = []
         const source = options.styles || ((el, pseudo) => el.ownerDocument.defaultView.getComputedStyle(el, pseudo))
         let documentRoot, view, active = false, scheduled = false, timer, counter = 0, tokenCounter = 0, generation = 0
@@ -217,6 +218,7 @@
                         planner.reset()
                         sweep()
                     }
+                    if (m.type === 'childList' || m.type === 'characterData') invalidateText(m.target)
                     for (const node of added) discover(node)
                     for (const node of removed) {
                         const pending = [node]
@@ -269,6 +271,7 @@
             const list = root.nodeType === 1 ? [root, ...root.querySelectorAll('*')] : Array.from(root.querySelectorAll ? root.querySelectorAll('*') : [])
             for (const el of list) {
                 if (!eligible(el)) continue
+                textContentCache.delete(el)
                 if (elementRoots.has(el) && elementRoots.get(el) !== el.getRootNode()) clearPaint(el)
                 elementRoots.set(el, el.getRootNode())
                 if (nodes.has(el) && el.getAttribute(HOOK) !== hookValues.get(el)) {
@@ -403,14 +406,51 @@
             return [el.checked, el.indeterminate, el.selected, el.disabled, el.localName === 'label' ? el.control?.checked : undefined].join(':')
         }
 
+        function invalidateText(target) {
+            let el = target.nodeType === 3 ? target.parentElement : target
+            while (el && el.nodeType === 1) {
+                textContentCache.delete(el)
+                queue(el)
+                el = el.parentElement
+            }
+        }
+
         function hasText(el) {
-            if (!documentRoot.createTreeWalker) return /\S/.test(el.textContent || '')
+            if (textContentCache.has(el)) return textContentCache.get(el)
             const first = el.firstChild
             if (first?.nodeType === 3 && /\S/.test(first.nodeValue || '')) return true
-            const walker = documentRoot.createTreeWalker(el, 4)
-            let node
-            while ((node = walker.nextNode())) if (/\S/.test(node.nodeValue || '')) return true
-            return false
+            if (!el.childNodes) {
+                let found = false
+                if (documentRoot.createTreeWalker) {
+                    const walker = documentRoot.createTreeWalker(el, 4)
+                    let node
+                    while ((node = walker.nextNode())) if (/\S/.test(node.nodeValue || '')) { found = true; break }
+                } else found = /\S/.test(el.textContent || '')
+                textContentCache.set(el, found)
+                return found
+            }
+            const pending = [{ node: el, children: el.childNodes, index: 0 }]
+            while (pending.length) {
+                const frame = pending[pending.length - 1]
+                const child = frame.children[frame.index++]
+                if (!child) {
+                    textContentCache.set(frame.node, false)
+                    pending.pop()
+                    continue
+                }
+                if (child.nodeType === 3) {
+                    if (!/\S/.test(child.nodeValue || '')) continue
+                } else if (child.nodeType === 1) {
+                    if (!textContentCache.has(child)) {
+                        pending.push({ node: child, children: child.childNodes || [], index: 0 })
+                        continue
+                    }
+                    if (!textContentCache.get(child)) continue
+                } else continue
+                for (const parent of pending) textContentCache.set(parent.node, true)
+                break
+            }
+            return textContentCache.get(el)
         }
 
         function snapshot(el, samples) {
@@ -913,6 +953,7 @@
             stableRotations = 0
             reconcileChanged = false
             guardCycle = false
+            textContentCache = new WeakMap()
             planner.reset()
             lastPlans = new Map()
             rawPlans = new Map()

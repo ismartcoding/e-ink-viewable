@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const C = require('../src/color')
-const Policy = require('../src/contrast')
+const Policy = require('../src/high-contrast/contrast')
 const { loadSites, measure, directTextRecords } = require('./helpers/site-replay')
 const sites = loadSites()
 const immutable = records => JSON.stringify(records.map(({ node, parent, svgRoot, ...source }) => source))

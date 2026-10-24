@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const C = require('../src/color')
-const Policy = require('../src/contrast')
+const Policy = require('../src/high-contrast/contrast')
 
 function field(paint = {}) {
     const node = {}, record = { node, tag: 'div', hasText: true, hasChildren: false, pseudos: {},

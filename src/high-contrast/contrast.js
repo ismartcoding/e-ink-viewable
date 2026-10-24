@@ -7,11 +7,11 @@
         'background-color', 'background-image', 'background-clip', '-webkit-background-clip',
         'fill', 'stroke', 'mask-image', '-webkit-mask-image',
         'outline-color', 'outline-style', 'outline-width', 'outline-offset',
-        'box-shadow', 'text-shadow', 'text-decoration-color', 'text-decoration-line', 'filter', 'mix-blend-mode',
+        'box-shadow', 'text-shadow', 'text-decoration-color', 'text-decoration-line', 'text-decoration-style', 'filter', 'backdrop-filter', 'mix-blend-mode',
         ...SIDES.flatMap(side => [`border-${side}-color`, `border-${side}-width`, `border-${side}-style`])
     ]
     const SOURCE = [...PAINT, 'display', 'position', 'opacity', 'visibility', 'content',
-        'backdrop-filter', 'isolation', 'cursor',
+        'isolation', 'cursor',
         'width', 'height', 'font-size', 'animation-name']
     const MEDIA = new Set(['img', 'video', 'canvas', 'iframe', 'object', 'embed', 'picture'])
     const ACTIONS = new Set(['button', 'a', 'summary', 'option'])
@@ -36,16 +36,15 @@
     function groupCompatible(candidates) {
         if (candidates.length < 2) return false
         let minHeight = Infinity, maxHeight = 0, minLeft = Infinity, maxLeft = -Infinity, minTop = Infinity, maxTop = -Infinity
-        let allActions = true, repeated = true
+        let allActions = true
         for (const r of candidates) {
             minHeight = Math.min(minHeight, r.rect.height); maxHeight = Math.max(maxHeight, r.rect.height)
             minLeft = Math.min(minLeft, r.rect.left); maxLeft = Math.max(maxLeft, r.rect.left)
             minTop = Math.min(minTop, r.rect.top); maxTop = Math.max(maxTop, r.rect.top)
             allActions &&= !!isAction(r)
-            repeated &&= !!r.shape && r.shape === candidates[0].shape && r.hasText && r.rect.height > 0 && r.rect.height <= MAX_FILL_HEIGHT
         }
         return maxHeight - minHeight <= Math.max(8, maxHeight / 4)
-            && (maxLeft - minLeft <= 8 || maxTop - minTop <= 8) && (allActions || repeated)
+            && (maxLeft - minLeft <= 8 || maxTop - minTop <= 8) && allActions
     }
 
     function paintProperty(prop) {
@@ -134,7 +133,8 @@
         const image = s => /url\(/i.test(s['background-image'] || '')
         const backdrop = s => s['backdrop-filter'] && s['backdrop-filter'] !== 'none'
         const painted = s => parse(s['background-color']).a > 0 || (s['background-image'] && s['background-image'] !== 'none')
-        const meaningful = s => s && s.content !== 'none' && s.content !== 'normal'
+        const visible = s => s && s.display !== 'none' && s.visibility !== 'hidden' && (!s.opacity || Number(s.opacity) > 0)
+        const meaningful = s => visible(s) && s.content !== 'none' && s.content !== 'normal'
         const surfacePseudo = (r, p) => meaningful(p) && painted(p) && !image(p)
             && ['""', "''"].includes(p.content) && parseFloat(p.width) >= r.rect.width * 0.8
             && parseFloat(p.height) >= r.rect.height * 0.8 && r.rect.width > 0 && r.rect.height > 8
@@ -157,6 +157,7 @@
             const protectedNodes = new Map()
             const nextGroups = new Map(), nextResting = new Map()
             const codes = new Map()
+            const textDifferences = new Set()
             const usable = records.filter(r => r.style.display !== 'none' && r.style.visibility !== 'hidden')
             const usableNodes = new Set(usable.map(r => r.node))
             const groupAreas = new Map()
@@ -251,12 +252,16 @@
                     nextGroups.set(parent, group)
                 }
                 const descriptions = []
+                let firstForeground
                 for (const r of candidates) {
                     if (!r.transient) nextResting.set(r.node, { ...r, style: { ...r.style }, pseudos: { ...r.pseudos } })
                     const baseline = r.transient && !r.selected ? nextResting.get(r.node) || resting.get(r.node) || r : r
                     const bg = over(parse(baseline.style['background-color']), rawBackground(byNode.get(baseline.parent)))
                     const fg = parse(baseline.style.color)
-                    const key = colorKey(bg) + '|' + colorKey(fg) + '|' + Number(baseline.selected)
+                    const foreground = colorKey(fg)
+                    if (firstForeground === undefined) firstForeground = foreground
+                    else if (foreground !== firstForeground) textDifferences.add(parent)
+                    const key = colorKey(bg) + '|' + foreground + '|' + Number(baseline.selected)
                         + '|' + SIDES.map(side => baseline.style[`border-${side}-width`] || '0').join(',')
                         + '|' + Object.entries(baseline.pseudos || {}).filter(([, p]) => surfacePseudo(baseline, p)).map(([name, p]) => name + (p['background-color'] || '')).join(',')
                     descriptions.push({ r, baseline, bg, fg, key })
@@ -330,13 +335,18 @@
                 for (let i = path.length - 1; i >= 0; i--) {
                     r = path[i]
                     const s = r.style
-                    const own = painted(s) || backdrop(s) || Object.values(r.pseudos || {}).some(p => surfacePseudo(r, p))
+                    const hostPaint = painted(s)
+                    const own = hostPaint || Object.values(r.pseudos || {}).some(p => surfacePseudo(r, p))
                     const code = codes.get(r.node) || 0
                     const root = r.tag === 'html' || r.tag === 'body'
                     const rawParent = rawBackground(byNode.get(r.parent))
                     const baseline = nextResting.get(r.node) || resting.get(r.node)
                     const hoverChanged = r.transient && baseline && (distance(parse(s.color), parse(baseline.style.color)) > COLOR_DISTANCE || distance(rawBackground(r), over(parse(baseline.style['background-color']), rawParent)) > COLOR_DISTANCE)
-                    const emphatic = !r.disabled && (r.selected || code > 0 || hoverChanged || (!codes.has(r.node) && action(r) && own && distance(rawBackground(r), rawParent) > COLOR_DISTANCE))
+                    const surfaceDifference = (r.selected || code > 0 || hoverChanged || action(r)) && own && (distance(rawBackground(r), rawParent) > COLOR_DISTANCE
+                        || Object.values(r.pseudos || {}).some(p => surfacePseudo(r, p) && distance(over(parse(p['background-color']), rawBackground(r)), rawParent) > COLOR_DISTANCE))
+                    const emphatic = !r.disabled && (r.selected || surfaceDifference && (code > 0 || hoverChanged))
+                    const edge = !r.disabled && (emphatic || action(r) && surfaceDifference)
+                    const textCue = !r.disabled && r.hasText && !emphatic && (code > 0 && textDifferences.has(r.parent) || hoverChanged)
                     const small = r.rect.height <= MAX_FILL_HEIGHT && r.rect.width * r.rect.height <= viewport.width * viewport.height * MAX_FILL_AREA
                     const area = groupAreas.get(r.parent)
                     const budget = !codes.has(r.node) || !area || !area.area || area.fill <= area.area * MAX_GROUP_FILL
@@ -346,7 +356,7 @@
                     const bg = graphic ? (C.brightness(rawBackground(r)) < 128 ? '#000' : '#fff')
                         : filled ? (parent.bg === '#000' ? '#fff' : '#000') : own || root ? '#fff' : parent.bg
                     const indicator = hasBar(r) && area && area.indicators === 1
-                    const value = { bg, fg: bg === '#000' ? '#fff' : '#000', indicator, own, emphatic, filled, code, root, transient, graphic }
+                    const value = { bg, fg: bg === '#000' ? '#fff' : '#000', indicator, own, emphatic, filled, code, root, transient, graphic, textCue, edge, hostPaint }
                     contexts.set(r.node, value)
                     parent = value
                 }
@@ -375,12 +385,13 @@
                 const s = r.style, c = context(r), props = {}
                 plans[''] = props
                 if (s.filter && s.filter !== 'none') props.filter = 'none'
+                if (backdrop(s)) props['backdrop-filter'] = 'none'
                 if (s['mix-blend-mode'] && s['mix-blend-mode'] !== 'normal') props['mix-blend-mode'] = 'normal'
                 const setPaint = (key, value, original = s[key]) => {
                     const color = parse(original)
                     if (color.a > 0) props[key] = value
                 }
-                if (c.own || c.root) {
+                if (c.hostPaint || c.root) {
                     props['background-color'] = c.bg
                     if (s['background-image'] && s['background-image'] !== 'none') props['background-image'] = 'none'
                 }
@@ -396,7 +407,7 @@
                 for (const prop of ['fill', 'stroke']) {
                     if (s[prop] !== 'none') setPaint(prop, c.fg)
                 }
-                if (!r.hasText && !r.hasChildren && !FORMS.has(r.tag) && !r.editable
+                if (parse(s['background-color']).a > 0 && !r.hasText && !r.hasChildren && !FORMS.has(r.tag) && !r.editable
                     && (s['mask-image'] && s['mask-image'] !== 'none' || s['-webkit-mask-image'] && s['-webkit-mask-image'] !== 'none')) props['background-color'] = context(byNode.get(r.parent)).fg
                 for (const side of SIDES) if (parseFloat(s[`border-${side}-width`]) > 0
                     && parse(s[`border-${side}-color`]).a >= MIN_BORDER_ALPHA) props[`border-${side}-color`] = c.fg
@@ -409,7 +420,12 @@
                     props['background-color'] = 'transparent'
                     props['-webkit-text-fill-color'] = c.fg
                 }
-                if ((c.emphatic || (action(r) && c.own)) && !c.filled && !c.graphic && !c.indicator && !r.disabled) {
+                if (c.textCue) {
+                    props['text-decoration-line'] = 'underline'
+                    props['text-decoration-style'] = c.code === 2 ? 'dashed' : c.code === 3 ? 'dotted' : 'double'
+                    props['text-decoration-color'] = c.fg
+                }
+                if (c.edge && !c.filled && !c.graphic && !c.indicator && !r.disabled) {
                     if (c.code >= 2 && (!s['outline-style'] || s['outline-style'] === 'none') && !r.focus) {
                         props['outline-width'] = '2px'
                         props['outline-style'] = c.code === 2 ? 'dashed' : 'double'
@@ -433,20 +449,21 @@
                 for (const [name, p] of Object.entries(r.pseudos || {})) {
                     if (name !== '::placeholder' && !meaningful(p) || image(p)) continue
                     const pp = {}, pc = parse(p['background-color'])
+                    if (c.filled && surfacePseudo(r, p)) pp.opacity = '1'
                     if (p.filter && p.filter !== 'none') pp.filter = 'none'
                     if (p['mix-blend-mode'] && p['mix-blend-mode'] !== 'normal') pp['mix-blend-mode'] = 'normal'
                     const hasPaint = painted(p)
                     const text = p.content && !['""', "''", 'none', 'normal'].includes(p.content)
                     const bar = hasPaint && !text && ((parseFloat(p.height) > 0 && parseFloat(p.height) <= 8)
                         || (parseFloat(p.width) > 0 && parseFloat(p.width) <= 8))
-                    const wash = pc.a < 0.15 && !text && !bar
+                    const wash = pc.a < 0.15 && !text && !bar && !surfacePseudo(r, p)
                     const pseudoBg = pc.a > 0 && !wash ? (bar ? c.fg : surfacePseudo(r, p) ? c.bg : '#fff') : c.bg
                     const fg = pseudoBg === '#000' ? '#fff' : '#000'
                     if (pc.a > 0) pp['background-color'] = wash ? 'transparent' : pseudoBg
                     if (hasPaint && p['background-image'] && p['background-image'] !== 'none') pp['background-image'] = 'none'
                     if (parse(p.color).a > 0) pp.color = fg
                     if (parse(p['-webkit-text-fill-color']).a > 0) pp['-webkit-text-fill-color'] = fg
-                    if (!text && (p['mask-image'] && p['mask-image'] !== 'none' || p['-webkit-mask-image'] && p['-webkit-mask-image'] !== 'none')) pp['background-color'] = c.fg
+                    if (pc.a > 0 && !text && (p['mask-image'] && p['mask-image'] !== 'none' || p['-webkit-mask-image'] && p['-webkit-mask-image'] !== 'none')) pp['background-color'] = c.fg
                     if (name === '::placeholder') pp.color = c.fg
                     for (const side of SIDES) if (parseFloat(p[`border-${side}-width`]) > 0
                         && parse(p[`border-${side}-color`]).a >= MIN_BORDER_ALPHA) pp[`border-${side}-color`] = fg

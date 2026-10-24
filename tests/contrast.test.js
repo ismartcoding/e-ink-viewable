@@ -1,8 +1,8 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const C = require('../src/color.js')
-const Policy = require('../src/contrast.js')
-const Dom = require('../src/contrast-dom.js')
+const Policy = require('../src/high-contrast/contrast.js')
+const Dom = require('../src/high-contrast/contrast-dom.js')
 
 const white = 'rgb(255, 255, 255)'
 const black = 'rgb(0, 0, 0)'
@@ -107,13 +107,16 @@ test('same-luminance different hues remain distinct and mapping is stable', () =
     assert.deepEqual(props(first, f.b), props(second, f.b))
 })
 
-test('text-only accent difference survives as a boundary rather than disappearing', () => {
+test('text-only accent difference survives as text decoration without a container frame', () => {
     const f = fixture()
     styled(f.a, { color: 'rgb(0, 0, 255)' })
     const plans = f.planner.plan(f.records)
     assert.notDeepEqual(props(plans, f.a), props(plans, f.b))
     assert.equal(props(plans, f.a).color, '#000')
     assert.equal(props(plans, f.b).color, '#000')
+    assert.equal(props(plans, f.a)['box-shadow'], undefined)
+    assert.equal(props(plans, f.a)['outline-style'], undefined)
+    assert.equal(props(plans, f.a)['text-decoration-style'], 'double')
 })
 
 test('hover feedback does not become persistent selected fill', () => {

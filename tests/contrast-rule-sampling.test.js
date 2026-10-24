@@ -1,6 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { createRuleLayer } = require('../src/contrast-dom')
+const { createRuleLayer } = require('../src/high-contrast/contrast-dom')
 
 function fixture() {
     let toggles = 0, disabled = false

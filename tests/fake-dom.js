@@ -1,4 +1,4 @@
-// Minimal fake DOM for driving src/engine.js without a browser.
+// Minimal fake DOM for driving src/comfort/engine.js without a browser.
 // Elements are plain objects recording every style write into a shared log.
 
 function createRecorder() {

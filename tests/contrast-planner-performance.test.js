@@ -1,8 +1,8 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const C = require('../src/color')
-const Policy = require('../src/contrast')
-const Output = require('../src/contrast-output')
+const Policy = require('../src/high-contrast/contrast')
+const Output = require('../src/high-contrast/contrast-output')
 
 function tree(depth, flat = false) {
     let parentReads = 0

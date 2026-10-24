@@ -8,30 +8,100 @@ const { spawnSync } = require('node:child_process')
 const root = path.resolve(__dirname, '..')
 const mutations = [
     {
-        id: 'current-location-as-selection', file: 'src/contrast-dom.js', testFile: 'tests/contrast-current-location.test.js',
+        id: 'invisible-pseudo-as-surface', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-surface-ownership.test.js',
+        testName: 'invisible pseudo surface {"opacity":"0"} never creates a sidebar button background',
+        replacements: [["const meaningful = s => visible(s) &&", "const meaningful = s => s &&"]]
+    },
+    {
+        id: 'pseudo-promoted-to-host-paint', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-surface-ownership.test.js',
+        testName: 'a visible pseudo surface stays on the pseudo instead of becoming host paint',
+        replacements: [['if (c.hostPaint || c.root)', 'if (c.own || c.root)']]
+    },
+    {
+        id: 'transparent-mask-invented-ink', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-surface-ownership.test.js',
+        testName: 'an unpainted element mask does not acquire ink',
+        replacements: [["if (parse(s['background-color']).a > 0 && !r.hasText", "if (!r.hasText"]]
+    },
+    {
+        id: 'transparent-pseudo-mask-invented-ink', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-surface-ownership.test.js',
+        testName: 'an unpainted pseudo mask does not acquire ink',
+        replacements: [["if (pc.a > 0 && !text && (p['mask-image']", "if (!text && (p['mask-image']"]]
+    },
+    {
+        id: 'ordinary-standalone-control-inverted', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-surface-ownership.test.js',
+        testName: 'adding an identical unselected peer cannot turn an ordinary button from black to white',
+        replacements: [['surfaceDifference && (code > 0 || hoverChanged)',
+            'surfaceDifference && (code > 0 || hoverChanged || !codes.has(r.node) && action(r))']]
+    },
+    {
+        id: 'pseudo-opacity-foreground-mismatch', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-surface-ownership.test.js',
+        testName: 'a selected pseudo at opacity 0.05 keeps effective surface and glyph contrast paired',
+        replacements: [["if (c.filled && surfacePseudo(r, p)) pp.opacity = '1'", '']]
+    },
+    {
+        id: 'text-presence-cache-disabled', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-text-bookkeeping.test.js',
+        testName: 'whitespace text discovery visits each text node once across nested snapshots',
+        replacements: [['if (textContentCache.has(el)) return textContentCache.get(el)', 'textContentCache = new WeakMap()']]
+    },
+    {
+        id: 'text-ancestor-cache-stale', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-text-bookkeeping.test.js',
+        testName: 'character data changes refresh cached descendant text and every ancestor',
+        replacements: [['el = el.parentElement\n            }\n        }\n\n        function hasText', 'el = null\n            }\n        }\n\n        function hasText']]
+    },
+
+    {
+        id: 'lost-real-control-surface', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-boundary-evidence.test.js',
+        testName: 'uniform tinted controls retain a real surface boundary when whitening would erase it',
+        replacements: [['const edge = !r.disabled && (emphatic || action(r) && surfaceDifference)',
+            'const edge = !r.disabled && emphatic']]
+    },
+
+    {
+        id: 'paint-presence-as-boundary', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-boundary-evidence.test.js',
+        testName: 'an ordinary action painted rgb(255, 255, 255) on white does not acquire a boundary',
+        replacements: [['if (c.edge && !c.filled', 'if ((c.edge || (action(r) && c.own)) && !c.filled']]
+    },
+    {
+        id: 'text-cluster-as-container-state', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-boundary-evidence.test.js',
+        testName: 'a current breadcrumb next to a differently colored repository picker does not acquire a frame',
+        replacements: [['(r.selected || surfaceDifference &&', '(r.selected || code > 0 || surfaceDifference &&']]
+    },
+    {
+        id: 'equal-surface-as-selection', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-boundary-evidence.test.js',
+        testName: 'authored container edges retain their geometry without accumulating synthetic edges',
+        replacements: [['const emphatic = !r.disabled && (r.selected || surfaceDifference &&',
+            'const emphatic = !r.disabled && (r.selected || own &&']]
+    },
+    {
+        id: 'foreground-distinction-erased', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-boundary-evidence.test.js',
+        testName: 'foreground-only navigation distinctions use text paint without inventing a container edge',
+        replacements: [['if (c.textCue) {', 'if (false) {']]
+    },
+
+    {
+        id: 'current-location-as-selection', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-current-location.test.js',
         testName: 'a current-page home link does not gain an invented selected frame around its brand',
         replacements: [["|| (el.checked === true && !['checkbox', 'radio'].includes(el.type)) || el.selected === true",
             "|| (!!state('aria-current') && state('aria-current') !== 'false')\n                || (el.checked === true && !['checkbox', 'radio'].includes(el.type)) || el.selected === true"]]
     },
     {
-        id: 'decorative-pseudo-state-cluster', file: 'src/contrast.js', testFile: 'tests/contrast-navigation-decoration.test.js',
-        testName: 'a decorative mask icon does not invent a selected border on an ordinary navigation link',
-        replacements: [['filter(([, p]) => surfacePseudo(baseline, p))',
-            'filter(([, p]) => meaningful(p) && painted(p))']]
+        id: 'lost-pseudo-surface-selection', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-navigation-decoration.test.js',
+        testName: 'a full surface pseudo background still preserves visual selection without ARIA',
+        replacements: [['filter(([, p]) => surfacePseudo(baseline, p))', 'filter(() => false)']]
     },
     {
-        id: 'backdrop-toolbar-protection', file: 'src/contrast.js', testFile: 'tests/contrast-backdrop.test.js',
+        id: 'backdrop-toolbar-protection', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-backdrop.test.js',
         testName: 'backdrop-filter alone does not exempt a translucent toolbar from contrast',
         replacements: [['if (image(s) || pseudoImage || r.unsafe) protect(r)',
             'if (backdrop(s) || image(s) || pseudoImage || r.unsafe) protect(r)']]
     },
     {
-        id: 'transparent-backdrop-surface', file: 'src/contrast.js', testFile: 'tests/contrast-backdrop.test.js',
+        id: 'transparent-backdrop-surface', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-backdrop.test.js',
         testName: 'backdrop-filter alone does not exempt a transparent toolbar from contrast',
-        replacements: [['const own = painted(s) || backdrop(s) ||', 'const own = painted(s) ||']]
+        replacements: [['if (c.hostPaint || c.root)', 'if (c.hostPaint || backdrop(s) || c.root)']]
     },
     {
-        id: 'media-parent-protection', file: 'src/contrast.js', testFile: 'tests/contrast.test.js',
+        id: 'media-parent-protection', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast.test.js',
         testName: 'a viewport background canvas and an offscreen positioned link do not protect the document',
         replacements: [
             ["if (parent && !fixedBackdrop && !['html', 'body'].includes(parent.tag)) {", 'if (parent) {'],
@@ -41,32 +111,32 @@ const mutations = [
         ]
     },
     {
-        id: 'comfort-stale-menu-paint', file: 'src/engine.js', testFile: 'tests/engine.test.js',
+        id: 'comfort-stale-menu-paint', file: 'src/comfort/engine.js', testFile: 'tests/engine.test.js',
         testName: 'Comfort releases converted menu paint when its selected class is removed',
         replacements: [['force.add(el)\n        restoreStyles(el)\n        attrDirty.add(el)', 'force.add(el)\n        attrDirty.add(el)']]
     },
     {
-        id: 'unpaired-selected-foreground', file: 'src/contrast.js', testFile: 'tests/contrast.test.js',
+        id: 'unpaired-selected-foreground', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast.test.js',
         testName: 'selected control keeps black fill and coordinated white foreground',
         replacements: [["const value = { bg, fg: bg === '#000' ? '#fff' : '#000',", "const value = { bg, fg: '#000',"]]
     },
     {
-        id: 'masked-text-as-icon', file: 'src/contrast.js', testFile: 'tests/contrast.test.js',
+        id: 'masked-text-as-icon', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast.test.js',
         testName: 'a masked text field keeps contrasting glyphs instead of becoming a solid icon',
-        replacements: [['if (!r.hasText && !r.hasChildren && !FORMS.has(r.tag) && !r.editable\n                    && (', 'if ((']]
+        replacements: [["if (parse(s['background-color']).a > 0 && !r.hasText && !r.hasChildren && !FORMS.has(r.tag) && !r.editable\n                    && (", 'if ((']]
     },
     {
-        id: 'late-shadow-unscheduled', file: 'src/contrast-dom.js', testFile: 'tests/contrast-dom.test.js',
+        id: 'late-shadow-unscheduled', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-dom.test.js',
         testName: 'periodic checks discover a late shadow root and schedule its new nodes',
         replacements: [['                kick()\n            }, options.recheckInterval || 1000)', '            }, options.recheckInterval || 1000)']]
     },
     {
-        id: 'periodic-background-refill', file: 'src/contrast-dom.js', testFile: 'tests/contrast-dom.test.js',
+        id: 'periodic-background-refill', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-dom.test.js',
         testName: 'periodic ticks during every batch never refill completed background work',
         replacements: [['if (!background.size && !urgent.size && !guardQueue.size && !scheduled && !planning) {\n                    if (reconcileWait)', 'if (true) {\n                    if (reconcileWait)']]
     },
     {
-        id: 'lost-author-inline-update', file: 'src/contrast-inline.js', testFile: 'tests/contrast-inline.test.js',
+        id: 'lost-author-inline-update', file: 'src/high-contrast/contrast-inline.js', testFile: 'tests/contrast-inline.test.js',
         testName: 'author changes during conversion become the new restoration state',
         replacements: [['entries.get(el).set(prop, { value, priority })', 'continue']]
     },
@@ -77,146 +147,147 @@ const mutations = [
             'return !lang ? chrome.i18n.getMessage(key) : text(messages?.[key]?.message) || text(fallback?.[key]?.message) || key']]
     },
     {
-        id: 'local-event-global-resampling', file: 'src/contrast-dom.js', testFile: 'tests/contrast-performance.test.js',
+        id: 'local-event-global-resampling', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-performance.test.js',
         testName: 'local click work does not grow with unrelated article content',
         replacements: [["                invalidate(target)\n                if (target?.localName === 'input') {",
             "                invalidate(target)\n                sweep()\n                if (target?.localName === 'input') {"]]
     },
     {
-        id: 'local-planning-global-input', file: 'src/contrast-dom.js', testFile: 'tests/contrast-performance.test.js',
+        id: 'local-planning-global-input', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-performance.test.js',
         testName: 'changed local controls plan and render only their dependency region',
         replacements: [['const records = [...context].map(el => snapshots.get(el)).filter(Boolean)', 'const records = [...snapshots.values()]']]
     },
     {
-        id: 'periodic-unbounded-sampling', file: 'src/contrast-dom.js', testFile: 'tests/contrast-performance.test.js',
+        id: 'periodic-unbounded-sampling', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-performance.test.js',
         testName: 'periodic reconciliation is bounded and still detects unannounced CSSOM paint changes',
         replacements: [['while (count < batchSize) {', 'while (count < nodes.size) {']]
     },
     {
-        id: 'local-inline-global-restoration', file: 'src/contrast-inline.js', testFile: 'tests/contrast-performance.test.js',
+        id: 'local-inline-global-restoration', file: 'src/high-contrast/contrast-inline.js', testFile: 'tests/contrast-performance.test.js',
         testName: 'local sampling leaves unrelated important author styles untouched until their periodic turn',
         replacements: [['for (const el of scope || entries.keys()) {', 'for (const el of entries.keys()) {']]
     },
     {
-        id: 'native-radio-peer-not-resampled', file: 'src/contrast-dom.js', testFile: 'tests/contrast-native-peers.test.js',
+        id: 'native-radio-peer-not-resampled', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-native-peers.test.js',
         testName: 'native radio selection transfers across separate containers without resampling ordinary content',
         replacements: [['for (const peer of new Set([target, ...peers])) if', 'for (const peer of [target]) if']]
     },
     {
-        id: 'removed-shadow-descendants-retained', file: 'src/contrast-dom.js', testFile: 'tests/contrast-dom-boundaries.test.js',
+        id: 'removed-shadow-descendants-retained', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-dom-boundaries.test.js',
         testName: 'removing a shadow host releases every shadow descendant and its inline ownership',
         replacements: [['                            for (const child of el.shadowRoot?.children || []) pending.push(child)\n', '']]
     },
     {
-        id: 'local-svg-protection-lost', file: 'src/contrast-dom.js', testFile: 'tests/contrast-dom-boundaries.test.js',
+        id: 'local-svg-protection-lost', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-dom-boundaries.test.js',
         testName: 'a local multicolor SVG update preserves protection derived from other graphic branches',
         replacements: [['                if (record.svgRoot) { addTree(record.svgRoot); continue }\n', '']]
     },
     {
-        id: 'local-photo-overlay-dependency-lost', file: 'src/contrast-dom.js', testFile: 'tests/contrast-dom-boundaries.test.js',
+        id: 'local-photo-overlay-dependency-lost', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-dom-boundaries.test.js',
         testName: 'a local photo-card text update keeps protection derived from its positioned heading sibling',
         replacements: [["\n                    || (hasImage && sibling.hasText && ['absolute', 'fixed'].includes(sibling.style.position))", '']]
     },
     {
-        id: 'unbounded-shared-paint-sampling', file: 'src/contrast-dom.js', testFile: 'tests/contrast-performance.test.js',
+        id: 'unbounded-shared-paint-sampling', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-performance.test.js',
         testName: 'shared paint groups bound the members invalidated by periodic source sampling',
         replacements: [['const cohort = Math.floor((Number(ids.get(el)) - 1) / batchSize)', 'const cohort = 0']]
     },
     {
-        id: 'filtered-toolbar-protection', file: 'src/contrast.js', testFile: 'tests/contrast-policy-boundaries.test.js',
+        id: 'filtered-toolbar-protection', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-policy-boundaries.test.js',
         testName: 'filter:invert(1) on an ordinary toolbar cannot preserve a dark region',
         replacements: [['if (image(s) || pseudoImage || r.unsafe) protect(r)',
             "if (image(s) || pseudoImage || r.unsafe || s.filter && s.filter !== 'none') protect(r)"]]
     },
     {
-        id: 'palette-overflow-region-protection', file: 'src/contrast.js', testFile: 'tests/contrast-policy-boundaries.test.js',
+        id: 'palette-overflow-region-protection', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-policy-boundaries.test.js',
         testName: 'more than four UI colors still convert to white surfaces and a paired selected state',
         replacements: [['if (unique.length > 4) {', 'if (unique.length > 4) { for (const item of candidates) protect(item)']]
     },
     {
-        id: 'unsafe-child-parent-protection', file: 'src/contrast.js', testFile: 'tests/contrast-policy-boundaries.test.js',
+        id: 'unsafe-child-parent-protection', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-policy-boundaries.test.js',
         testName: 'an unsafe opaque child cannot exempt the document or its ordinary siblings',
         replacements: [['if (image(s) || pseudoImage || r.unsafe) protect(r)',
             'if (r.unsafe && byNode.has(r.parent)) protect(byNode.get(r.parent)); if (image(s) || pseudoImage || r.unsafe) protect(r)']]
     },
     {
-        id: 'ordinary-content-selected-fill', file: 'src/contrast.js', testFile: 'tests/contrast-policy-boundaries.test.js',
+        id: 'ordinary-content-selected-fill', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-policy-boundaries.test.js',
         testName: 'a color change on repeated noninteractive body content cannot turn it into a black selected surface',
-        replacements: [['const filled = emphatic && (r.selected || action(r)) &&', 'const filled = emphatic &&']]
+        replacements: [['&& allActions\n    }', '&& (allActions || candidates.every(r => r.hasText))\n    }'],
+            ['const filled = emphatic && (r.selected || action(r)) &&', 'const filled = emphatic &&']]
     },
     {
-        id: 'local-important-owner-full-enumeration', file: 'src/contrast-inline.js', testFile: 'tests/contrast-inline-performance.test.js',
+        id: 'local-important-owner-full-enumeration', file: 'src/high-contrast/contrast-inline.js', testFile: 'tests/contrast-inline-performance.test.js',
         testName: 'scoped plan removal restores that owner without visiting other converted elements',
         replacements: [['const candidates = scope || new Set([...entries.keys(), ...plans.keys()])',
             'const candidates = new Set([...entries.keys(), ...plans.keys()])']]
     },
     {
-        id: 'local-plan-full-cache-copy', file: 'src/contrast-dom.js', testFile: 'tests/contrast-plan-cache.test.js',
+        id: 'local-plan-full-cache-copy', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-plan-cache.test.js',
         testName: 'a local selection update does not copy the full page plan cache',
         replacements: [['const updates = new Map()', 'const updates = new Map(rawPlans)']]
     },
     {
-        id: 'idle-reconciliation-without-backoff', file: 'src/contrast-dom.js', testFile: 'tests/contrast-idle-performance.test.js',
+        id: 'idle-reconciliation-without-backoff', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-idle-performance.test.js',
         testName: 'a stable page skips expensive reconciliation on alternate ticks without sampling writes',
         replacements: [['reconcileDelay = stableRotations >= 2 ? 2 : 1', 'reconcileDelay = 1']]
     },
     {
-        id: 'ordinary-peer-global-sampling', file: 'src/contrast-dom.js', testFile: 'tests/contrast-local-performance.test.js',
+        id: 'ordinary-peer-global-sampling', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-local-performance.test.js',
         testName: 'one ordinary white content class change does not process its repeated siblings',
         replacements: [['for (const child of actionPeers(el)) {', 'for (const child of parent.children || []) {']]
     },
     {
-        id: 'pending-first-paint-gap', file: 'src/contrast-dom.js', testFile: 'tests/contrast-pending.test.js',
+        id: 'pending-first-paint-gap', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-pending.test.js',
         testName: 'pending work stays visible between shared sampling and the first paint plan',
         replacements: [['Number(!!planning || pendingChanges.size > 0 || scheduled)', 'Number(!!planning)']]
     },
     {
-        id: 'duplicate-initial-source-sampling', file: 'src/contrast-dom.js', testFile: 'tests/contrast-initial-sampling.test.js',
+        id: 'duplicate-initial-source-sampling', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-initial-sampling.test.js',
         testName: 'initial ordinary source reads are shared with transition preflight instead of repeated',
         replacements: [['const samples = initial && !paintStarted ? {} : null', 'const samples = null']]
     },
     {
-        id: 'ancestor-full-text-assembly', file: 'src/contrast-dom.js', testFile: 'tests/contrast-dom-bookkeeping.test.js',
+        id: 'ancestor-full-text-assembly', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-dom-bookkeeping.test.js',
         testName: 'local sampling does not assemble all descendant text of document ancestors',
         replacements: [['hasText: hasText(el),', 'hasText: !!el.textContent.trim(),']]
     },
     {
-        id: 'empty-guard-sheet-toggle', file: 'src/contrast-dom.js', testFile: 'tests/contrast-empty-guard.test.js',
+        id: 'empty-guard-sheet-toggle', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-empty-guard.test.js',
         testName: 'a page without paint transitions never toggles an empty guard stylesheet',
         replacements: [['if (guardedRoots.has(root)) { guard.disable(true); suspendedGuards.push(guard) }',
             '{ guard.disable(true); suspendedGuards.push(guard) }']]
     },
     {
-        id: 'unrelated-shadow-guard-toggle', file: 'src/contrast-dom.js', testFile: 'tests/contrast-empty-guard.test.js',
+        id: 'unrelated-shadow-guard-toggle', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-empty-guard.test.js',
         testName: 'local ordinary content does not toggle an unrelated shadow transition guard',
         replacements: [['if (guardedRoots.has(root)) { guard.disable(true); suspendedGuards.push(guard) }',
             'if (guard.stats().rules) { guard.disable(true); suspendedGuards.push(guard) }']]
     },
     {
-        id: 'equal-rgb-perceptual-work', file: 'src/contrast.js', testFile: 'tests/contrast-initial-policy-performance.test.js',
+        id: 'equal-rgb-perceptual-work', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-initial-policy-performance.test.js',
         testName: 'equal RGB values need no perceptual conversion even when alpha differs',
         replacements: [['if (a.r === b.r && a.g === b.g && a.b === b.b) return 0', '']]
     },
     {
-        id: 'ordinary-content-perceptual-work', file: 'src/contrast.js', testFile: 'tests/contrast-initial-policy-performance.test.js',
+        id: 'ordinary-content-perceptual-work', file: 'src/high-contrast/contrast.js', testFile: 'tests/contrast-initial-policy-performance.test.js',
         testName: 'ordinary repeated content with rgb(20,20,20) paint avoids perceptual color work unrelated to interaction',
-        replacements: [['!codes.has(r.node) && action(r) && own && distance(rawBackground(r), rawParent) > COLOR_DISTANCE',
-            'distance(rawBackground(r), rawParent) > COLOR_DISTANCE && !codes.has(r.node) && action(r) && own']]
+        replacements: [['const surfaceDifference = (r.selected || code > 0 || hoverChanged || action(r)) && own &&',
+            'const surfaceDifference = distance(rawBackground(r), rawParent) > COLOR_DISTANCE && (r.selected || code > 0 || hoverChanged || action(r)) && own &&']]
     },
     {
-        id: 'snapshot-source-serialization', file: 'src/contrast-dom.js', testFile: 'tests/contrast-initial-bookkeeping.test.js',
+        id: 'snapshot-source-serialization', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-initial-bookkeeping.test.js',
         testName: 'initial and unchanged source samples do not serialize retained snapshot copies',
         replacements: [['const prev = snapshots.get(el)\n            if (!prev || !sameSnapshot',
             'const prev = snapshots.get(el)\n            JSON.stringify({ ...next, transient: undefined, node: undefined, parent: undefined, control: undefined, svgRoot: undefined })\n            if (!prev || !sameSnapshot']]
     },
     {
-        id: 'source-property-entry-allocations', file: 'src/contrast-dom.js', testFile: 'tests/contrast-initial-bookkeeping.test.js',
+        id: 'source-property-entry-allocations', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-initial-bookkeeping.test.js',
         testName: 'copying computed source properties does not allocate an entry pair for every property',
         replacements: [['const values = {}\n            for (const prop of Policy.SOURCE) values[prop] = style.getPropertyValue(prop)\n            return values',
             'return Object.fromEntries(Policy.SOURCE.map(prop => [prop, style.getPropertyValue(prop)]))']]
     },
     {
-        id: 'text-leaf-walker-allocations', file: 'src/contrast-dom.js', testFile: 'tests/contrast-initial-bookkeeping.test.js',
+        id: 'text-leaf-walker-allocations', file: 'src/high-contrast/contrast-dom.js', testFile: 'tests/contrast-initial-bookkeeping.test.js',
         testName: 'text-only leaves do not construct a TreeWalker for their first nonempty text node',
         replacements: [["const first = el.firstChild\n            if (first?.nodeType === 3 && /\\S/.test(first.nodeValue || '')) return true\n", '']]
     }

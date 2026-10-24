@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const C = require('../src/color')
-const Policy = require('../src/contrast')
+const Policy = require('../src/high-contrast/contrast')
 const { createDocument } = require('./helpers/contrast-document')
 
 const black = 'rgb(0, 0, 0)', white = 'rgb(255, 255, 255)', clear = 'rgba(0, 0, 0, 0)'

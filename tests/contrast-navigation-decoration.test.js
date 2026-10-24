@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const C = require('../src/color')
-const Policy = require('../src/contrast')
+const Policy = require('../src/high-contrast/contrast')
 
 const dim = 'rgb(148, 163, 156)'
 function navigation(kind = 'mask') {

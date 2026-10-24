@@ -20,7 +20,7 @@ custom-control{display:block;padding:16px;margin-top:16px}pre{white-space:pre-wr
 const store={'d:all':'contrast'};window.chrome={storage:{local:{get:async keys=>Array.isArray(keys)?Object.fromEntries(keys.map(key=>[key,store[key]])):{[keys]:store[keys]},set:async items=>Object.assign(store,items)}},runtime:{onMessage:{addListener(){}}}};
 let customStyleChanges=0;customElements.define('custom-control',class extends HTMLElement{static observedAttributes=['style'];attributeChangedCallback(){customStyleChanges++}});customStyleChanges=0;
 </script>
-<script src="../../src/color.js"></script><script src="../../src/engine.js"></script><script src="../../src/contrast.js"></script><script src="../../src/contrast-inline.js"></script><script src="../../src/contrast-output.js"></script><script src="../../src/contrast-dom.js"></script><script src="../../src/toggle.js"></script>
+<script src="../../src/color.js"></script><script src="../../src/comfort/engine.js"></script><script src="../../src/high-contrast/contrast.js"></script><script src="../../src/high-contrast/contrast-inline.js"></script><script src="../../src/high-contrast/contrast-output.js"></script><script src="../../src/high-contrast/contrast-dom.js"></script><script src="../../src/toggle.js"></script>
 <script>let engine;const create=EinkContrastDom.createContrastEngine;EinkContrastDom.createContrastEngine=(...args)=>(engine=create(...args))</script><script src="../../src/inject.js"></script>
 <script>
 const get=selector=>document.querySelector(selector),css=selector=>getComputedStyle(typeof selector==='string'?get(selector):selector),results=[]

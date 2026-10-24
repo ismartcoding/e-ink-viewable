@@ -8,7 +8,7 @@ function policy() {
     const math = Object.create(Math), work = { cbrt: 0, hypot: 0 }
     for (const name of Object.keys(work)) math[name] = (...args) => { work[name]++; return Math[name](...args) }
     const context = { module: { exports: {} }, Math: math }
-    vm.runInNewContext(fs.readFileSync(require.resolve('../src/contrast'), 'utf8'), context)
+    vm.runInNewContext(fs.readFileSync(require.resolve('../src/high-contrast/contrast'), 'utf8'), context)
     return { ...context.module.exports, work }
 }
 function content(count, background) {

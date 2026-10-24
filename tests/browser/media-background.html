@@ -6,7 +6,7 @@ html{font:16px/1.5 sans-serif}body{margin:0;background:#0b100e;color:#d6e2da;min
 <script>
 const saved={'d:all':'contrast'};window.chrome={storage:{local:{get:async keys=>Array.isArray(keys)?Object.fromEntries(keys.map(key=>[key,saved[key]])):{[keys]:saved[keys]},set:async items=>Object.assign(saved,items)}},runtime:{onMessage:{addListener(){}}}};
 </script>
-<script src="../../src/color.js"></script><script src="../../src/engine.js"></script><script src="../../src/contrast.js"></script><script src="../../src/contrast-inline.js"></script><script src="../../src/contrast-output.js"></script><script src="../../src/contrast-dom.js"></script><script src="../../src/toggle.js"></script>
+<script src="../../src/color.js"></script><script src="../../src/comfort/engine.js"></script><script src="../../src/high-contrast/contrast.js"></script><script src="../../src/high-contrast/contrast-inline.js"></script><script src="../../src/high-contrast/contrast-output.js"></script><script src="../../src/high-contrast/contrast-dom.js"></script><script src="../../src/toggle.js"></script>
 <script>const create=EinkContrastDom.createContrastEngine;let engine;EinkContrastDom.createContrastEngine=(...args)=>(engine=create(...args))</script>
 <script src="../../src/inject.js"></script>
 <a id="skip" href="#article">Skip to content</a><canvas id="background"></canvas>

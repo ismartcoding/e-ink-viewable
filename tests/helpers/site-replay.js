@@ -1,6 +1,6 @@
 (() => {
 const C = typeof module !== 'undefined' && module.exports ? require('../../src/color') : globalThis.EinkColor
-const Policy = typeof module !== 'undefined' && module.exports ? require('../../src/contrast') : globalThis.EinkContrast
+const Policy = typeof module !== 'undefined' && module.exports ? require('../../src/high-contrast/contrast') : globalThis.EinkContrast
 
 function loadSites() {
     const fs = require('node:fs'), path = require('node:path')

@@ -1,8 +1,8 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const C = require('../src/color')
-const Policy = require('../src/contrast')
-const { effectivePlans } = require('../src/contrast-output')
+const Policy = require('../src/high-contrast/contrast')
+const { effectivePlans } = require('../src/high-contrast/contrast-output')
 
 const black = 'rgb(0, 0, 0)', white = 'rgb(255, 255, 255)', clear = 'rgba(0, 0, 0, 0)'
 function record(parent = null, style = {}, extra = {}) {

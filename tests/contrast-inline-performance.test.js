@@ -17,7 +17,7 @@ function fixture(count) {
         clear() { if (this === owners) work.clears++; return super.clear() }
     }
     const context = { module: { exports: {} }, Map: CountedMap }
-    vm.runInNewContext(fs.readFileSync(require.resolve('../src/contrast-inline'), 'utf8'), context)
+    vm.runInNewContext(fs.readFileSync(require.resolve('../src/high-contrast/contrast-inline'), 'utf8'), context)
     const inline = context.module.exports.createInlineStyles(f.doc)
     owners = maps[0]
     const elements = Array.from({ length: count }, () => {
