@@ -19,6 +19,7 @@ function createRecorder() {
         },
         removals: () => log.filter(e => e[0] === 'remove'),
         // opts: { parent, contentEditable, ownerSvg, shadowRoot,
+        //         childElementCount, textContent,
         //         pseudo: {'::before': {...}, '::after': {...}} }
         el(tag, opts = {}) {
             const el = {
@@ -27,6 +28,8 @@ function createRecorder() {
                 parentElement: opts.parent || null,
                 ownerSVGElement: opts.ownerSvg || null,
                 isContentEditable: !!opts.contentEditable,
+                childElementCount: opts.childElementCount || 0,
+                textContent: opts.textContent || '',
                 style: {
                     setProperty(prop, value) {
                         log.push(['write', el, prop, value])

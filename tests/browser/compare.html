@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Original and current high contrast comparison</title>
+<style>
+html{font:16px sans-serif;background:#fff;color:#000;-webkit-text-fill-color:#000}
+body{margin:16px;background:transparent;color:#000;-webkit-text-fill-color:#000}
+nav{display:flex;gap:8px;margin-bottom:16px}
+button{font:inherit;padding:8px 16px;border:1px solid #000;background:transparent;color:#000;-webkit-text-fill-color:currentColor}
+button.selected{background:#000;color:#fff}
+.row{height:32px;background:#fff;color:#000;-webkit-text-fill-color:#000}
+body.gray .row{background:rgb(230,230,230);color:rgb(128,128,128);-webkit-text-fill-color:rgb(128,128,128)}
+.row.changed,body.gray .row.changed{background:#000;color:#fff;-webkit-text-fill-color:#fff}
+pre{white-space:pre-wrap}
+</style>
+<nav><button id="first" class="selected" aria-selected="true" type="button">Previous</button><button id="second" aria-selected="false" type="button">Current</button></nav>
+<pre id="results">Loading comparison…</pre>
+<script>
+(async () => {
+    const params = new URLSearchParams(location.search)
+    const kind = params.get('engine') === 'original' ? 'original' : 'current'
+    const size = Math.max(2, Math.min(10000, Number(params.get('size')) || 1000))
+    const gray = params.get('paint') === 'gray'
+    const srcBase = new URL(params.get('srcBase') || '../../src/', location.href)
+    const legacyBase = new URL((params.get('legacyBase') || '/legacy').replace(/\/$/, '') + '/', location.href)
+    const result = document.getElementById('results')
+    if (gray) document.body.classList.add('gray')
+    const rows = [], fragment = document.createDocumentFragment()
+    for (let i = 0; i < size; i++) {
+        const row = document.createElement('div')
+        row.className = 'row'
+        row.textContent = 'Ordinary content row ' + i
+        rows.push(row)
+        fragment.appendChild(row)
+    }
+    document.body.insertBefore(fragment, result)
+    const input = { size, gray, rows: rows.map(row => [row.tagName, row.className, row.textContent]),
+        navigation: [...document.querySelector('nav').children].map(el => [el.tagName, el.className, el.getAttribute('aria-selected'), el.textContent]) }
+    const bytes = new TextEncoder().encode(JSON.stringify(input))
+    const inputHash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(value => value.toString(16).padStart(2, '0')).join('')
+    const sourceFiles = kind === 'original' ? ['color.js', 'engine.js'] : ['color.js', 'contrast.js', 'contrast-inline.js', 'contrast-output.js', 'contrast-dom.js']
+    for (const file of sourceFiles) await new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = new URL(file, kind === 'original' ? legacyBase : srcBase).href
+        script.onload = resolve
+        script.onerror = () => reject(Error('Could not load ' + script.src))
+        document.head.appendChild(script)
+    })
+    const nativeStyle = window.getComputedStyle.bind(window)
+    const nativeFrame = window.requestAnimationFrame.bind(window)
+    const restorers = [], owners = new WeakMap(), phases = {}, checks = {}, first = document.getElementById('first'), second = document.getElementById('second')
+    for (const el of document.querySelectorAll('*')) owners.set(el.style, el)
+    let recording = false, authoring = false, phase, pending = 0, engine, originalObserver, originalPass
+    const add = (key, value = 1) => { if (recording && !authoring) phase[key] += value }
+    const author = operation => { authoring = true; try { return operation() } finally { authoring = false } }
+    function method(target, name, before) {
+        const native = target[name]
+        if (typeof native !== 'function') return false
+        target[name] = function (...args) { before(this, args); return native.apply(this, args) }
+        restorers.push(() => { target[name] = native })
+        return true
+    }
+    function setter(target, name, before) {
+        const descriptor = Object.getOwnPropertyDescriptor(target, name)
+        if (!descriptor?.set || !descriptor.configurable) return false
+        Object.defineProperty(target, name, { ...descriptor, set(value) { before(this, value); return descriptor.set.call(this, value) } })
+        restorers.push(() => Object.defineProperty(target, name, descriptor))
+        return true
+    }
+    const nativeCreate = document.createElement.bind(document)
+    document.createElement = (...args) => {
+        const el = nativeCreate(...args)
+        owners.set(el.style, el)
+        return el
+    }
+    restorers.push(() => { document.createElement = nativeCreate })
+    const instrumentation = {}
+    for (const name of ['setAttribute', 'removeAttribute']) instrumentation[name] = method(Element.prototype, name, (el, args) => {
+        add('attributeWrites')
+        if (args[0].startsWith('data-eink-')) add('hookWrites')
+    })
+    instrumentation.geometry = method(Element.prototype, 'getBoundingClientRect', () => add('geometryReads'))
+    for (const name of ['insertRule', 'deleteRule', 'replace', 'replaceSync']) instrumentation[name] = method(CSSStyleSheet.prototype, name, () => add('cssomWrites'))
+    for (const name of ['setProperty', 'removeProperty']) instrumentation[name] = method(CSSStyleDeclaration.prototype, name, style => {
+        if (style.parentRule) add('cssomWrites')
+        else if (owners.get(style)?.isConnected) add('inlineWrites')
+    })
+    instrumentation.declarations = setter(CSSStyleDeclaration.prototype, 'cssText', style => {
+        if (style.parentRule) add('cssomWrites')
+        else if (owners.get(style)?.isConnected) add('inlineWrites')
+    })
+    instrumentation.selector = setter(CSSStyleRule.prototype, 'selectorText', () => add('cssomWrites'))
+    instrumentation.disabled = setter(StyleSheet.prototype, 'disabled', (sheet, value) => { if (sheet.disabled !== value) add('sheetToggles') })
+    instrumentation.styleText = setter(Node.prototype, 'textContent', (el, value) => {
+        if (el.nodeType === 1 && el.localName === 'style') { add('stylesheetTextWrites'); add('stylesheetTextCharacters', String(value).length) }
+    })
+    instrumentation.appendStyle = method(Element.prototype, 'append', (el, args) => {
+        if (el.localName === 'style') { add('stylesheetTextWrites'); add('stylesheetTextCharacters', args.reduce((sum, value) => sum + String(value).length, 0)) }
+    })
+    function styles(el, pseudo) {
+        add('styleReads'); add(pseudo ? 'pseudoStyleReads' : 'mainStyleReads')
+        return nativeStyle(el, pseudo)
+    }
+    function schedule(callback) {
+        pending++
+        nativeFrame(() => {
+            pending--
+            const measured = phase, beforeReads = measured?.styleReads || 0, beforeWrites = measured?.hookWrites || 0
+            const started = performance.now()
+            try { callback() }
+            finally {
+                if (recording && phase === measured) {
+                    measured.frames++
+                    const elapsed = performance.now() - started
+                    measured.callbackTotalMs += elapsed
+                    measured.maxCallbackMs = Math.max(measured.maxCallbackMs, elapsed)
+                    measured.maxFrameStyleReads = Math.max(measured.maxFrameStyleReads, measured.styleReads - beforeReads)
+                    measured.maxFrameHookWrites = Math.max(measured.maxFrameHookWrites, measured.hookWrites - beforeWrites)
+                    measured.lastEngineWorkMs = performance.now() - measured.started
+                }
+            }
+        })
+    }
+    if (kind === 'current') {
+        const policy = { ...EinkContrast, createPlanner(...args) {
+            const planner = EinkContrast.createPlanner(...args)
+            return { ...planner, planSteps(records, ...rest) {
+                add('plannerCalls'); add('plannerRecords', records.length)
+                const iterator = planner.planSteps(records, ...rest)
+                return { [Symbol.iterator]() { return this }, next(value) { add('plannerSteps'); return iterator.next(value) },
+                    return(value) { return iterator.return(value) } }
+            } }
+        } }
+        engine = EinkContrastDom.createContrastEngine(EinkColor, policy, { styles, schedule, repeat: () => 1, cancelRepeat() {},
+            createInlineStyles: EinkContrastInline.createInlineStyles })
+    }
+    const equal = (actual, expected, message) => { if (actual !== expected) throw Error(message + ': ' + actual + ' != ' + expected) }
+    function contentCheck(elements) {
+        const summary = { nodes: elements.length, whiteBackground: 0, blackText: 0, blackGlyphPaint: 0 }
+        for (const el of elements) {
+            const value = nativeStyle(el)
+            summary.whiteBackground += Number(value.backgroundColor === 'rgb(255, 255, 255)')
+            summary.blackText += Number(value.color === 'rgb(0, 0, 0)')
+            summary.blackGlyphPaint += Number(value.webkitTextFillColor === 'rgb(0, 0, 0)')
+        }
+        for (const key of ['whiteBackground', 'blackText', 'blackGlyphPaint']) equal(summary[key], elements.length, key + ' must include every actual content row')
+        return summary
+    }
+    async function settle() {
+        const bound = Math.ceil((size + 300) / 64) * 16 + 32
+        let stable = 0
+        for (let i = 0; i < bound; i++) {
+            await new Promise(resolve => nativeFrame(resolve))
+            const stats = engine?.stats()
+            if (stats?.failures) throw Error('Production engine failure: ' + stats.lastError)
+            stable = !pending && (!stats || !stats.pending) ? stable + 1 : 0
+            if (stable === 2) return
+        }
+        throw Error('Production queue did not finish within its finite frame budget')
+    }
+    async function measure(name, action) {
+        phase = { styleReads: 0, mainStyleReads: 0, pseudoStyleReads: 0, geometryReads: 0, attributeWrites: 0, hookWrites: 0,
+            inlineWrites: 0, cssomWrites: 0, stylesheetTextWrites: 0, stylesheetTextCharacters: 0, sheetToggles: 0,
+            plannerCalls: 0, plannerRecords: 0, plannerSteps: 0, frames: 0, callbackTotalMs: 0, maxCallbackMs: 0,
+            maxFrameStyleReads: 0, maxFrameHookWrites: 0, lastEngineWorkMs: 0, started: performance.now() }
+        phases[name] = phase
+        recording = true
+        action()
+        phase.synchronousMs = performance.now() - phase.started
+        await settle()
+        phase.totalConvergenceMs = performance.now() - phase.started
+        recording = false
+        if (engine) phase.engine = Object.fromEntries(['nodes', 'rules', 'writes', 'samplingWrites', 'failures', 'pending'].map(key => [key, engine.stats()[key]]))
+        delete phase.started
+    }
+    let added
+    try {
+        await measure('initial', () => {
+            if (engine) return engine.start(document)
+            const sheet = document.createElement('style')
+            sheet.textContent = EinkEngine.CONTRAST_TEXT
+            document.documentElement.appendChild(sheet)
+            originalPass = EinkEngine.createContrastPass(EinkColor, { styles, schedule, applyCss: css => sheet.append(css) })
+            originalPass.scanTree(document.documentElement)
+            originalObserver = new MutationObserver(records => originalPass.onMutations(records))
+            originalObserver.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
+            document.addEventListener('change', event => originalPass.applyFormChange(event.target), true)
+        })
+        checks.initial = contentCheck(rows)
+        await measure('selectionClick', () => {
+            author(() => {
+                first.classList.remove('selected'); second.classList.add('selected')
+                first.setAttribute('aria-selected', 'false'); second.setAttribute('aria-selected', 'true')
+            })
+            second.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        })
+        const previous = nativeStyle(first), selected = nativeStyle(second)
+        checks.selection = { previousBackground: previous.backgroundColor, selectedBackground: selected.backgroundColor,
+            selectedForeground: selected.color, selectedGlyph: selected.webkitTextFillColor,
+            distinguishable: previous.backgroundColor !== selected.backgroundColor }
+        equal(checks.selection.distinguishable, kind === 'current', 'The original selection gap must remain visible in the result')
+        if (kind === 'current') {
+            equal(selected.backgroundColor, 'rgb(0, 0, 0)', 'Selected navigation background')
+            equal(selected.color, 'rgb(255, 255, 255)', 'Selected navigation foreground')
+            equal(selected.webkitTextFillColor, 'rgb(255, 255, 255)', 'Selected navigation glyph')
+        }
+        await measure('localClassUpdate', () => author(() => rows.at(-1).classList.add('changed')))
+        checks.localClassUpdate = contentCheck([rows.at(-1)])
+        await measure('addedSubtree', () => author(() => {
+            const article = document.createElement('article')
+            added = []
+            for (let i = 0; i < 32; i++) {
+                const row = document.createElement('div')
+                row.className = 'row'; row.textContent = 'Added ordinary row ' + i
+                added.push(row); article.appendChild(row)
+            }
+            document.body.insertBefore(article, result)
+        }))
+        checks.addedSubtree = contentCheck(added)
+        const sourceVersion = kind === 'original' ? '1.5.8' : (await fetch(new URL('manifest.json', srcBase)).then(response => response.json())).version
+        const report = { pass: true, engine: kind, sourceVersion, size, paint: gray ? 'gray' : 'white', inputHash,
+            environment: { userAgent: navigator.userAgent, hardwareConcurrency: navigator.hardwareConcurrency, devicePixelRatio },
+            sourceFiles: sourceFiles.map(file => new URL(file, kind === 'original' ? legacyBase : srcBase).href),
+            method: 'Actual production scripts and original global stylesheet, real DOM/CSS cascade and requestAnimationFrame. Counter instrumentation is included in callback timings. Fixture-author writes are excluded. No timing threshold or fixed sleeps. Conversion assertions read every content leaf.',
+            timing: 'totalConvergenceMs includes two consecutive quiet animation frames confirming the finite queue is empty; lastEngineWorkMs ends at the last measured engine callback. maxCallbackMs covers scheduled production callbacks. Observer/event synchronous work contributes to total elapsed time and operation counts.',
+            idle: 'Automatic periodic callbacks are disabled in this interaction comparison; deterministic stable-idle 12/120 tick work is measured separately by compare-contrast-engines.js.',
+            originalUnsupportedScenarios: ['Selected navigation state separation'],
+            instrumentation, phases, checks }
+        for (const restore of restorers.reverse()) restore()
+        result.textContent = JSON.stringify(report, null, 2)
+        window.comparisonResult = report
+    } catch (error) {
+        recording = false
+        for (const restore of restorers.reverse()) restore()
+        const report = { pass: false, engine: kind, size, paint: gray ? 'gray' : 'white', inputHash, error: error.stack, phases, checks }
+        result.textContent = JSON.stringify(report, null, 2)
+        window.comparisonResult = report
+    }
+})().catch(error => { document.getElementById('results').textContent = JSON.stringify({ pass: false, error: error.stack }) })
+</script>
+</html>

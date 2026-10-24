@@ -80,6 +80,39 @@ test('dark backgrounds flip to white, translucent keeps its alpha, light stays',
     assert.deepEqual(recorder.props(light), {}) // light page: untouched
 })
 
+test('empty inline widgets keep their background: a span used as a checkbox is the paint itself', () => {
+    const { recorder, engine, scheduler, table } = setup()
+    const box = el(recorder, 'span') // empty inline-block checkbox
+    const badge = el(recorder, 'span', { textContent: 'New' }) // text: still a surface
+    const nested = el(recorder, 'span', { childElementCount: 1 }) // has an element child
+    table.set(box, style({ display: 'inline-block', backgroundColor: 'rgb(13, 17, 23)' }))
+    table.set(badge, style({ display: 'inline-block', backgroundColor: 'rgb(13, 17, 23)' }))
+    table.set(nested, style({ display: 'inline-block', backgroundColor: 'rgb(13, 17, 23)' }))
+
+    engine.enqueueTree(makeRoot(box, [box, badge, nested]))
+    scheduler.runAll()
+
+    assert.deepEqual(recorder.props(box), {}) // checkbox paint stays
+    assert.deepEqual(recorder.props(badge), { 'background-color': '#fff' })
+    assert.deepEqual(recorder.props(nested), { 'background-color': '#fff' })
+})
+
+test('empty span keeps its background even when flex blockifies it to display:block', () => {
+    // A switch track is a span inside a flex label: flexbox blockifies the
+    // item, so computed display is block/flex — the tag is still a span.
+    const { recorder, engine, scheduler, table } = setup()
+    const track = el(recorder, 'span')
+    const divBar = el(recorder, 'div')
+    table.set(track, style({ display: 'block', backgroundColor: 'rgb(13, 17, 23)' }))
+    table.set(divBar, style({ display: 'flex', backgroundColor: 'rgb(13, 17, 23)' }))
+
+    engine.enqueueTree(makeRoot(track, [track, divBar]))
+    scheduler.runAll()
+
+    assert.deepEqual(recorder.props(track), {}) // span widget paint stays
+    assert.deepEqual(recorder.props(divBar), { 'background-color': '#fff' }) // block surface still flips
+})
+
 test('text: near-white flips to black at 165, grays and links are kept', () => {
     const { recorder, engine, scheduler, table } = setup()
     const white = el(recorder, 'p')
@@ -329,7 +362,7 @@ test('mutations: added elements and their subtrees are processed, text nodes ign
 test('hover: target and ancestors are re-planned even when already processed', () => {
     const { recorder, engine, scheduler, table } = setup()
     const nav = el(recorder, 'nav')
-    const link = el(recorder, 'a', { parent: nav })
+    const link = el(recorder, 'a', { parent: nav, textContent: 'Docs' })
     table.set(nav, style({ backgroundColor: 'rgb(255, 255, 255)' }))
     table.set(link, style({ color: 'rgb(9, 105, 218)' }))
 
@@ -455,8 +488,8 @@ test('background-clip:text: a light gradient is the text paint and becomes solid
     // the glyphs. Clearing the "background" without replacing the paint made
     // the text invisible.
     const { recorder, engine, scheduler, table } = setup()
-    const pill = el(recorder, 'a')
-    const span = el(recorder, 'span', { parent: pill })
+    const pill = el(recorder, 'a', { childElementCount: 1 })
+    const span = el(recorder, 'span', { parent: pill, textContent: 'CTA' })
     table.set(pill, style({ backgroundColor: 'rgb(13, 17, 23)' }))
     table.set(span, {
         backgroundColor: 'rgba(0, 0, 0, 0)',
@@ -680,47 +713,6 @@ test('STYLE_TEXT carries the color-only rules', () => {
     assert.doesNotMatch(Engine.STYLE_TEXT, /width|margin|padding/)
 })
 
-test('CONTRAST style: black text everywhere, no blanket background on real elements', () => {
-    // the real-element rule forces only text — backgrounds are per element
-    assert.match(Engine.CONTRAST_TEXT, /\*:not\(#eink\):not\(#eink\):not\(#eink\)\s*{[^}]*color:\s*#000 !important/)
-    assert.doesNotMatch(Engine.CONTRAST_TEXT, /\*:not\(#eink\):not\(#eink\):not\(#eink\)\s*{[^}]*background/)
-    // the root stays white: transparent chains fall through to it
-    assert.match(Engine.CONTRAST_TEXT, /html\s*{[^}]*background:\s*#fff !important/)
-    // pseudo backgrounds are per element too — the blanket white erased
-    // GitHub's selected-tab underline (github.com nav), so the stylesheet
-    // must not set any background on ::before/::after
-    assert.doesNotMatch(Engine.CONTRAST_TEXT, /::after\s*{[^}]*background/)
-    assert.match(Engine.CONTRAST_TEXT, /::before,\s*\*:not\(#eink\):not\(#eink\):not\(#eink\)::after\s*{[^}]*color:\s*#000 !important/)
-    assert.match(Engine.CONTRAST_TEXT, /color-scheme:\s*light/)
-    // the forced palette also covers selection and scrollbars — same rules
-    // as auto mode's STYLE_TEXT
-    assert.match(Engine.CONTRAST_TEXT, /::selection\s*{[^}]*background-color:\s*#000/)
-    assert.match(Engine.CONTRAST_TEXT, /scrollbar-color:\s*#000 #fff/)
-    // white glyph paint / placeholder / native accents cannot survive either
-    assert.match(Engine.CONTRAST_TEXT, /-webkit-text-fill-color:\s*#000 !important/)
-    assert.match(Engine.CONTRAST_TEXT, /::placeholder\s*{[^}]*color:\s*#000 !important/)
-    assert.match(Engine.CONTRAST_TEXT, /accent-color:\s*#000 !important/)
-    // media keeps its own colors — grayscaling it buys nothing on e-ink
-    assert.doesNotMatch(Engine.CONTRAST_TEXT, /grayscale|filter/)
-    // transparent borders are intentional (spacing tricks) — never forced black
-    assert.doesNotMatch(Engine.CONTRAST_TEXT, /border-color/)
-    // shadows survive contrast mode; the pass blackens the colored ones
-    assert.doesNotMatch(Engine.CONTRAST_TEXT, /box-shadow/)
-    assert.doesNotMatch(Engine.CONTRAST_TEXT, /invert/)
-    assert.doesNotMatch(Engine.CONTRAST_TEXT, /width:|margin:|padding:/) // color-only, no layout
-})
-
-test('CONTRAST style: hover/focus/active go white — a dark site hover paint can never return', () => {
-    const s = '\\*:not\\(#eink\\):not\\(#eink\\):not\\(#eink\\)'
-    // one rule for every interaction state; the one-shot contrast pass never
-    // sees the hover moment, so the stylesheet must cover it
-    assert.match(Engine.CONTRAST_TEXT, new RegExp(
-        s + ':hover,\\s*'
-        + s + ':focus,\\s*'
-        + s + ':focus-visible,\\s*'
-        + s + ':active\\s*{\\s*background:\\s*#fff !important;\\s*}'))
-})
-
 test('hover: transition delay counts into the re-check time', () => {
     const { recorder, engine, scheduler, table, delays } = setup()
     const link = el(recorder, 'a')
@@ -841,486 +833,95 @@ test('a changed pseudo rule is appended after its identical predecessor is skipp
     assert.match(css[1], /color:#000!important/)
 })
 
-// ---- Mode B contrast pass: painted backgrounds go white, colored borders and shadows go black, the rest stay ----
-
-function borderSetup() {
-    const recorder = createRecorder()
-    const table = new Map()
-    const scheduler = createScheduler()
-    const css = [] // generated pseudo rules, appended text like inject.js
-    const pass = Engine.createContrastPass(C, {
-        styles: createStyles(recorder, table),
-        schedule: scheduler.schedule,
-        applyCss: text => css.push(text)
+test('Comfort releases converted menu paint when its selected class is removed', () => {
+    const { recorder, engine, scheduler, table } = setup()
+    const menu = el(recorder, 'button', { textContent: 'Open' })
+    let selected = true
+    table.set(menu, {
+        ...style(),
+        get backgroundColor() {
+            return recorder.props(menu)['background-color'] || (selected ? 'rgb(24, 24, 24)' : 'rgba(0, 0, 0, 0)')
+        }
     })
-    return { recorder, scheduler, table, pass, css }
-}
-
-test('backgrounds: painted ones go white, transparent ones stay clear', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const dark = el(recorder, 'div')
-    const overlay = el(recorder, 'div')   // translucent dark overlay: still a paint
-    const gradient = el(recorder, 'div')  // gradient without a base color
-    const clear = el(recorder, 'div')     // the style() default: fully transparent
-    table.set(dark, style({ backgroundColor: 'rgb(13, 17, 23)' }))
-    table.set(overlay, style({ backgroundColor: 'rgba(0, 0, 0, 0.4)' }))
-    table.set(gradient, style({ backgroundImage: 'linear-gradient(rgb(20, 20, 20), rgb(40, 40, 40))' }))
-
-    pass.scanTree(makeRoot(dark, [dark, overlay, gradient, clear]))
+    engine.enqueue(menu)
     scheduler.runAll()
+    assert.equal(recorder.props(menu)['background-color'], '#fff')
 
-    // the shorthand write also clears images/gradients on painted elements
-    assert.deepEqual(recorder.props(dark), { background: '#fff' })
-    assert.deepEqual(recorder.props(overlay), { background: '#fff' })
-    assert.deepEqual(recorder.props(gradient), { background: '#fff' })
-    assert.deepEqual(recorder.props(clear), {}) // no background forced on clear elements
-    assert.equal(recorder.writes().filter(w => w[1] === clear).length, 0)
+    selected = false
+    engine.enqueueMutations([{ type: 'attributes', target: menu }])
+    scheduler.runAll()
+    assert.equal(recorder.props(menu)['background-color'], undefined)
+
+    selected = true
+    engine.enqueueMutations([{ type: 'attributes', target: menu }])
+    scheduler.runAll()
+    assert.equal(recorder.props(menu)['background-color'], '#fff')
 })
 
-test('backgrounds: a clear element keeps its transparency even when its border is blackened', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const box = el(recorder, 'div')
-    table.set(box, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
-
-    pass.scanTree(makeRoot(box, [box]))
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(box), { 'border-top-color': '#000' })
-})
-
-test('backgrounds: open shadow roots are walked, painted ones whiten there too', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const host = el(recorder, 'div')
-    const inner = el(recorder, 'div')
-    table.set(inner, style({ backgroundColor: 'rgb(13, 17, 23)' }))
-    host.shadowRoot = { querySelectorAll: () => [inner] }
-
-    pass.scanTree(makeRoot(host, [host]))
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(inner), { background: '#fff' })
-})
-
-test('pseudos: a painted accent indicator turns black, not white', () => {
-    // GitHub's selected-tab underline: .UnderlineNav-item::after paints the
-    // accent color — blanketing pseudo backgrounds white made it vanish
-    const { recorder, scheduler, table, pass, css } = borderSetup()
-    const item = el(recorder, 'a', {
-        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgb(253, 140, 115)' }) }
-    })
-
-    pass.scanTree(makeRoot(item, [item]))
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(item), {}) // the item itself stays clear
-    assert.equal(item.attrs['data-eink-p'], '1')
-    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}'])
-})
-
-test('pseudos: a background-image (photo or gradient) never gets a color', () => {
-    // the image is the site's own paint: writing a color on top of it would
-    // erase the icon/photo (the background shorthand clears background-image)
-    const { recorder, scheduler, table, pass, css } = borderSetup()
-    const photo = el(recorder, 'div', {
-        pseudo: { '::before': style({ content: '""', backgroundImage: 'url("https://x/hero.png")' }) }
-    })
-    const gradient = el(recorder, 'div', {
-        pseudo: { '::after': style({ content: '""', backgroundImage: 'linear-gradient(rgb(20, 20, 20), rgb(40, 40, 40))' }) }
-    })
-    const both = el(recorder, 'div', {
-        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgb(13, 17, 23)', backgroundImage: 'url("https://x/icon.png")' }) }
-    })
-
-    pass.scanTree(makeRoot(photo, [photo, gradient, both]))
-    scheduler.runAll()
-
-    assert.deepEqual(css, []) // no rule, so no color exists to fight the image
-    assert.equal(photo.attrs['data-eink-p'], undefined)
-    assert.equal(gradient.attrs['data-eink-p'], undefined)
-    assert.equal(both.attrs['data-eink-p'], undefined)
-    assert.equal(recorder.writes().length, 0) // not even an inline write
-})
-
-test('pseudos: faint translucent washes read as no background and get nothing', () => {
-    // a few-percent rgba wash is glass decoration, not a paint the site set —
-    // blackening one drew a solid black box on an element that had none
-    const { recorder, scheduler, pass, css } = borderSetup()
-    const faintDark = el(recorder, 'div', {
-        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgba(0, 0, 0, 0.4)' }) }
-    })
-    const glassTint = el(recorder, 'div', {
-        pseudo: { '::before': style({ content: '""', backgroundColor: 'rgba(255, 255, 255, 0.05)' }) }
-    })
-    const boundary = el(recorder, 'div', {
-        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgba(253, 140, 115, 0.5)' }) }
-    })
-
-    pass.scanTree(makeRoot(faintDark, [faintDark, glassTint, boundary]))
-    scheduler.runAll()
-
-    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}']) // only the half-opaque one
-    assert.equal(faintDark.attrs['data-eink-p'], undefined)
-    assert.equal(glassTint.attrs['data-eink-p'], undefined)
-    assert.equal(recorder.writes().length, 0)
-})
-
-test('pseudos: image swap to a solid color picks the black rule up', () => {
-    // a gradient pseudo got no rule; once the site repaints it with a solid
-    // color, the accent-indicator blackening applies as usual
-    const { recorder, scheduler, pass, css } = borderSetup()
-    const item = el(recorder, 'a', {
-        pseudo: { '::after': style({ content: '""', backgroundImage: 'linear-gradient(rgb(20, 20, 20), rgb(40, 40, 40))' }) }
-    })
-    pass.scanTree(makeRoot(item, [item]))
-    scheduler.runAll()
-    assert.deepEqual(css, [])
-    assert.equal(item.attrs['data-eink-p'], undefined)
-
-    item._pseudo['::after'] = style({ content: '""', backgroundColor: 'rgb(253, 140, 115)' })
-    pass.onMutations([{ type: 'attributes', target: item, addedNodes: [] }])
-    scheduler.runAll()
-    assert.equal(item.attrs['data-eink-p'], '1')
-    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}'])
-})
-
-test('pseudos: an indicator repainted with an image gets its black rule reset', () => {
-    // the reverse swap: our black rule must not stick once the site paints
-    // an image — the sheet is append-only, so a later reset rule wins
-    const { recorder, scheduler, pass, css } = borderSetup()
-    const item = el(recorder, 'a', {
-        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgb(253, 140, 115)' }) }
-    })
-    pass.scanTree(makeRoot(item, [item]))
-    scheduler.runAll()
-    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}'])
-
-    item._pseudo['::after'] = style({ content: '""', backgroundImage: 'url("https://x/icon.png")' })
-    pass.onMutations([{ type: 'attributes', target: item, addedNodes: [] }])
-    scheduler.runAll()
-    assert.deepEqual(css, [
-        '[data-eink-p="1"]::after{background-color:#000!important}',
-        '[data-eink-p="1"]::after{background-color:transparent!important}'
-    ])
-})
-
-test('pseudos: transparent or content-less pseudos get no rule and no hook attribute', () => {
-    const { recorder, scheduler, table, pass, css } = borderSetup()
-    const clearPseudo = el(recorder, 'div', {
-        pseudo: { '::after': style({ content: '""' }) } // default: transparent
-    })
-    const noContent = el(recorder, 'div', {
-        pseudo: { '::before': style({ content: 'none', backgroundColor: 'rgb(0, 0, 0)' }) }
-    })
-
-    pass.scanTree(makeRoot(clearPseudo, [clearPseudo, noContent]))
-    scheduler.runAll()
-
-    assert.deepEqual(css, [])
-    assert.equal(clearPseudo.attrs['data-eink-p'], undefined)
-    assert.equal(noContent.attrs['data-eink-p'], undefined)
-    assert.equal(recorder.writes().length, 0)
-})
-
-test('hairlines: GitHub nav inset shadow blackens in place and stays visible', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const nav = el(recorder, 'nav')
-    table.set(nav, style({ boxShadow: 'rgba(209, 217, 224, 0.7) 0px -1px 0px 0px inset' }))
-
-    pass.scanTree(makeRoot(nav, [nav]))
-    scheduler.runAll()
-
-    // alpha kept (soft shadows stay soft), hue blackened — visible on white
-    assert.deepEqual(recorder.props(nav), { 'box-shadow': 'rgba(0, 0, 0, 0.7) 0px -1px 0px 0px inset' })
-})
-
-test('text: white glyph paints the stylesheet lost go black inline, mid grays keep their paint', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    // shadow-root button (the wildcard never matches inside) and a stubborn
-    // site rule that beat it (ID + !important) — same failure, same fix
-    const shadowBtn = el(recorder, 'button')
-    const stubborn = el(recorder, 'button')
-    const muted = el(recorder, 'button')
-    const field = el(recorder, 'input')
-    table.set(shadowBtn, style({ color: 'rgb(255, 255, 255)', webkitTextFillColor: 'rgb(255, 255, 255)' }))
-    table.set(stubborn, style({ color: 'rgb(255, 255, 255)' }))
-    table.set(muted, style({ color: 'rgb(153, 153, 153)' }))
-    table.set(field, style({ color: 'rgb(255, 255, 255)', caretColor: 'rgb(255, 255, 255)' }))
-
-    pass.scanTree(makeRoot(shadowBtn, [shadowBtn, stubborn, muted, field]))
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(shadowBtn), { color: '#000', '-webkit-text-fill-color': '#000' })
-    assert.deepEqual(recorder.props(stubborn), { color: '#000' })
-    assert.deepEqual(recorder.props(muted), {}) // gray reads fine on white
-    assert.deepEqual(recorder.props(field), { color: '#000', 'caret-color': '#000' })
-})
-
-test('reads: media and form controls skip the pseudo reads', () => {
-    const { recorder, scheduler, pass } = borderSetup()
-    const img = el(recorder, 'img')
-    const field = el(recorder, 'input')
-    const box = el(recorder, 'div')
-
-    pass.scanTree(makeRoot(img, [img, field, box]))
-    scheduler.runAll()
-
-    assert.equal(recorder.reads().filter(r => r[1] === img).length, 1)
-    assert.equal(recorder.reads().filter(r => r[1] === field).length, 1)
-    assert.equal(recorder.reads().filter(r => r[1] === box).length, 3) // element + both pseudos
-})
-
-test('svg: white fills follow the text color instead of vanishing, non-shapes stay skipped', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const svg = el(recorder, 'svg') // icon sets hang fill on the root itself
-    const icon = el(recorder, 'path', { parent: svg, ownerSvg: svg })
-    const defs = el(recorder, 'defs', { parent: svg, ownerSvg: svg })
-    table.set(svg, style({ fill: 'rgb(255, 255, 255)' }))
-    table.set(icon, style({ fill: 'rgb(255, 255, 255)', stroke: 'rgb(255, 255, 255)' }))
-
-    pass.scanTree(makeRoot(svg, [svg, icon, defs]))
-    scheduler.runAll()
-
-    // light paint was designed against a dark site: follow the forced black
-    assert.deepEqual(recorder.props(svg), { fill: 'currentColor' })
-    assert.deepEqual(recorder.props(icon), { fill: 'currentColor', stroke: 'currentColor' })
-    assert.equal(recorder.writes().filter(w => w[1] === defs).length, 0)
-})
-
-test('class churn: newly painted elements whiten, un-painted ones drop the stale white', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const box = el(recorder, 'div')
-    table.set(box, style({ backgroundColor: 'rgb(13, 17, 23)' }))
-    pass.scanTree(makeRoot(box, [box]))
-    scheduler.runAll()
-    assert.deepEqual(recorder.props(box), { background: '#fff' })
-
-    // theme toggle: the same element goes back to transparent — the stale
-    // inline white must be removed, not frozen in place
-    table.set(box, style())
-    pass.onMutations([{ type: 'attributes', target: box, addedNodes: [] }])
-    scheduler.runAll()
-    assert.deepEqual(recorder.props(box), {})
-    assert.ok(recorder.removals().some(r => r[1] === box && r[2] === 'background'))
-})
-
-test('form change: a sibling painted by :checked after load is re-read', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const parent = el(recorder, 'div')
-    const input = el(recorder, 'input', { parent })
-    const label = el(recorder, 'label', { parent })
-    pass.scanTree(makeRoot(parent, [parent, input, label]))
-    scheduler.runAll()
-    assert.deepEqual(recorder.props(label), {}) // unchecked: transparent
-
-    // input:checked + label { background: ... } lands with the commit
-    table.set(label, style({ backgroundColor: 'rgb(13, 17, 23)' }))
-    pass.applyFormChange(input)
-    scheduler.runAll()
-    assert.deepEqual(recorder.props(label), { background: '#fff' })
-})
-
-test('pseudos: an indicator un-painted by a class change gets a reset rule', () => {
-    const { recorder, scheduler, table, pass, css } = borderSetup()
-    const item = el(recorder, 'a', {
-        pseudo: { '::after': style({ content: '""', backgroundColor: 'rgb(253, 140, 115)' }) }
-    })
-    pass.scanTree(makeRoot(item, [item]))
-    scheduler.runAll()
-    assert.deepEqual(css, ['[data-eink-p="1"]::after{background-color:#000!important}'])
-
-    // the site drops the accent (tab deselected): the old black rule must
-    // not stick — the sheet is append-only, so a later reset rule wins
-    item._pseudo['::after'] = style({ content: '""' })
-    pass.onMutations([{ type: 'attributes', target: item, addedNodes: [] }])
-    scheduler.runAll()
-    assert.deepEqual(css, [
-        '[data-eink-p="1"]::after{background-color:#000!important}',
-        '[data-eink-p="1"]::after{background-color:transparent!important}'
-    ])
-})
-
-test('pseudos: an icon arriving after the black rule survives it (longhand only)', () => {
-    // Gmail's compose pencil: .L3::before ships its background-image in a
-    // late SPA stylesheet chunk. If our first read caught only a solid
-    // color, the rule must not erase the icon when it lands — the background
-    // shorthand did exactly that. Longhand touches background-color only.
-    const { recorder, scheduler, pass, css } = borderSetup()
-    const item = el(recorder, 'div', {
-        pseudo: { '::before': style({ content: '""', backgroundColor: 'rgb(11, 87, 208)' }) }
-    })
-    pass.scanTree(makeRoot(item, [item]))
-    scheduler.runAll()
-    assert.deepEqual(css, ['[data-eink-p="1"]::before{background-color:#000!important}'])
-
-    // the icon chunk arrives: the reset clears only our color, the image
-    // stays the site's own paint
-    item._pseudo['::before'] = style({ content: '""', backgroundImage: 'url("https://mail.google.com/create_32dp.png")' })
-    pass.onMutations([{ type: 'attributes', target: item, addedNodes: [] }])
-    scheduler.runAll()
-    assert.deepEqual(css, [
-        '[data-eink-p="1"]::before{background-color:#000!important}',
-        '[data-eink-p="1"]::before{background-color:transparent!important}'
-    ])
-})
-
-test('borders: opaque colored sides go black, every side on its own', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const box = el(recorder, 'div')
-    table.set(box, style({
-        borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)',
-        borderRightWidth: '1px', borderRightColor: 'rgb(255, 255, 255)',
-        borderBottomWidth: '8px', borderBottomColor: 'rgb(51, 51, 51)',
-        borderLeftWidth: '1px', borderLeftColor: 'rgb(255, 255, 255)'
-    }))
-
-    pass.scanTree(makeRoot(box, [box]))
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(box), {
-        'border-top-color': '#000',
-        'border-right-color': '#000',
-        'border-bottom-color': '#000', // dark but colored: still forced black
-        'border-left-color': '#000'
-    })
-})
-
-test('borders: the transparent spacing trick is left untouched', () => {
-    // Google's search box: a fat transparent border used purely as spacing
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const box = el(recorder, 'div')
-    table.set(box, style({
-        borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)',
-        borderBottomWidth: '8px', borderBottomColor: 'rgba(0, 0, 0, 0)'
-    }))
-
-    pass.scanTree(makeRoot(box, [box]))
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(box), { 'border-top-color': '#000' })
-})
-
-test('borders: faint translucent sides read as decorative and stay', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const box = el(recorder, 'div')
-    table.set(box, style({
-        borderTopWidth: '1px', borderTopColor: 'rgba(255, 255, 255, 0.05)',
-        borderBottomWidth: '1px', borderBottomColor: 'rgba(255, 255, 255, 0.6)'
-    }))
-
-    pass.scanTree(makeRoot(box, [box]))
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(box), { 'border-bottom-color': '#000' })
-})
-
-test('borders: zero-width borders mean nothing to paint, nothing written', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const box = el(recorder, 'div')
-    table.set(box, style({
-        borderTopWidth: '0px', borderTopColor: 'rgb(255, 255, 255)',
-        borderLeftWidth: '0px', borderLeftColor: 'rgb(255, 255, 255)'
-    }))
-
-    pass.scanTree(makeRoot(box, [box]))
-    scheduler.runAll()
-
-    assert.equal(recorder.reads().length, 3) // element + both pseudos, once each
-    assert.equal(recorder.writes().length, 0)
-})
-
-test('borders: batched like the engine, reads before writes, one frame at a time', () => {
-    const recorder = createRecorder()
-    const table = new Map()
-    const scheduler = createScheduler()
-    const pass = Engine.createContrastPass(C, {
-        styles: createStyles(recorder, table),
-        schedule: scheduler.schedule,
-        batchSize: 2
-    })
-    const boxes = []
-    for (let i = 0; i < 5; i++) {
-        const box = el(recorder, 'div')
-        table.set(box, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
-        boxes.push(box)
+test('Comfort restores authored inline values and priorities after deselection', () => {
+    const { recorder, engine, scheduler, table } = setup()
+    const menu = el(recorder, 'button', { textContent: 'Open' })
+    const authored = 'rgba(0, 0, 0, 0)'
+    const assignments = []
+    const setProperty = menu.style.setProperty
+    menu.style.setProperty = (prop, value, priority) => {
+        assignments.push([prop, value, priority])
+        setProperty(prop, value)
     }
-
-    pass.scanTree(makeRoot(boxes[0], boxes))
-    assert.equal(scheduler.frames.length, 1)
-
-    scheduler.runFrame()
-    assert.equal(recorder.writes().length, 2)
-    assert.equal(scheduler.frames.length, 1)
-
-    scheduler.runFrame()
-    scheduler.runFrame()
-    assert.equal(recorder.writes().length, 5)
-    assert.equal(scheduler.frames.length, 0)
+    menu.style.getPropertyValue = prop => prop === 'background-color' ? authored : ''
+    menu.style.getPropertyPriority = prop => prop === 'background-color' ? 'important' : ''
+    table.set(menu, style({ backgroundColor: 'rgb(24, 24, 24)', color: 'rgb(255, 255, 255)' }))
+    engine.enqueue(menu)
+    scheduler.runAll()
+    table.set(menu, style())
+    engine.enqueueMutations([{ type: 'attributes', target: menu }])
+    scheduler.runAll()
+    assert.deepEqual(recorder.props(menu), { 'background-color': authored })
+    assert.ok(assignments.some(([prop, value, priority]) => prop === 'background-color' && value === authored && priority === 'important'))
 })
 
-test('borders: nodes added later are scanned, skipped tags are not', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const added = el(recorder, 'div')
-    const child = el(recorder, 'p', { parent: added })
-    const script = el(recorder, 'script', { parent: added })
-    table.set(added, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
-    table.set(child, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
-    table.set(script, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
-
-    pass.onMutations([{ addedNodes: [makeRoot(added, [child, script])] }])
-    assert.equal(scheduler.frames.length, 1)
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(added), { 'border-top-color': '#000' })
-    assert.deepEqual(recorder.props(child), { 'border-top-color': '#000' })
-    assert.equal(recorder.writes().filter(w => w[1] === script).length, 0)
-})
-
-test('borders: an element is inspected exactly once even when scanned twice', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const box = el(recorder, 'div')
-    table.set(box, style({ borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)' }))
-
-    pass.scanTree(makeRoot(box, [box]))
-    scheduler.runAll()
-    const readsAfterFirst = recorder.reads().length
-
-    pass.scanTree(makeRoot(box, [box]))
-    scheduler.runAll()
-
-    assert.equal(recorder.reads().length, readsAfterFirst)
-})
-
-test('shadows: colored ones turn black in place, black ones and none stay', () => {
-    // borderless cards — the shadow alone gets them scanned
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const glow = el(recorder, 'div')
-    const soft = el(recorder, 'div')
-    const plain = el(recorder, 'div')
-    table.set(glow, style({ boxShadow: 'rgb(59, 130, 246) 0px 4px 12px 0px' }))
-    table.set(soft, style({ boxShadow: 'rgba(59, 130, 246, 0.3) 0px 4px 12px 0px' }))
-    table.set(plain, style({ boxShadow: 'rgba(0, 0, 0, 0.1) 0px 1px 3px 0px' }))
-
-    pass.scanTree(makeRoot(glow, [glow, soft, plain]))
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(glow), { 'box-shadow': '#000 0px 4px 12px 0px' })
-    assert.deepEqual(recorder.props(soft), { 'box-shadow': 'rgba(0, 0, 0, 0.3) 0px 4px 12px 0px' }) // alpha kept
-    assert.deepEqual(recorder.props(plain), {}) // already black: nothing to write
-})
-
-test('shadows: borders and shadows on one element are fixed together', () => {
-    const { recorder, scheduler, table, pass } = borderSetup()
-    const card = el(recorder, 'div')
-    table.set(card, style({
-        borderTopWidth: '1px', borderTopColor: 'rgb(255, 255, 255)',
-        boxShadow: 'rgb(59, 130, 246) 0px 4px 12px 0px'
-    }))
-
-    pass.scanTree(makeRoot(card, [card]))
-    scheduler.runAll()
-
-    assert.deepEqual(recorder.props(card), {
-        'border-top-color': '#000',
-        'box-shadow': '#000 0px 4px 12px 0px'
+test('Comfort clears converted hover paint on pointer exit and converts it again on entry', () => {
+    const { recorder, engine, scheduler, table } = setup()
+    const menu = el(recorder, 'button', { textContent: 'Open' })
+    let hovered = true
+    table.set(menu, {
+        ...style(),
+        get backgroundColor() {
+            return recorder.props(menu)['background-color'] || (hovered ? 'rgb(24, 24, 24)' : 'rgba(0, 0, 0, 0)')
+        }
     })
+    engine.applyPointerTarget(menu)
+    assert.equal(recorder.props(menu)['background-color'], '#fff')
+    hovered = false
+    engine.releasePointerTarget(menu)
+    scheduler.runAll()
+    assert.equal(recorder.props(menu)['background-color'], undefined)
+    hovered = true
+    engine.applyPointerTarget(menu)
+    assert.equal(recorder.props(menu)['background-color'], '#fff')
+})
+
+test('Comfort measures deselected menu paint without capturing an outgoing transition', () => {
+    const { recorder, engine, scheduler, table } = setup()
+    const menu = el(recorder, 'button', { textContent: 'Open' })
+    menu.style.getPropertyValue = prop => prop === 'transition-property' ? 'all' : ''
+    menu.style.getPropertyPriority = prop => prop === 'transition-property' ? 'important' : ''
+    let selected = true
+    let transitionCancelled = false
+    table.set(menu, {
+        ...style(),
+        get backgroundColor() {
+            const inline = recorder.props(menu)
+            if (inline['background-color']) return inline['background-color']
+            if (selected) return 'rgb(24, 24, 24)'
+            if (inline['transition-property'] === 'none') transitionCancelled = true
+            return transitionCancelled ? 'rgba(0, 0, 0, 0)' : 'rgba(24, 24, 24, 0.75)'
+        }
+    })
+    engine.enqueue(menu)
+    scheduler.runAll()
+    selected = false
+    engine.enqueueMutations([{ type: 'attributes', target: menu }])
+    scheduler.runAll()
+    assert.deepEqual(recorder.props(menu), { 'transition-property': 'all' })
 })

@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Popup browser-language regression</title>
+<style>body{margin:16px;background:white;color:black;font:16px system-ui}iframe{width:344px;height:560px;border:1px solid black}p{margin:8px 0}</style>
+<p>Actual popup HTML and scripts. Native translation deliberately returns empty.</p>
+<iframe title="Popup with an empty native translation catalog"></iframe>
+<script>
+fetch('../../src/popup.html').then(r=>r.text()).then(html=>{
+ const shim=`<base href="../../src/"><script>
+ const saved={};
+ window.chrome={i18n:{getUILanguage:()=> 'zh-CN',getMessage:()=> ''},runtime:{getURL:value=>new URL(value,document.baseURI).href},
+ storage:{local:{get:async keys=>Array.isArray(keys)?Object.fromEntries(keys.filter(key=>key in saved).map(key=>[key,saved[key]])):keys===null?{...saved}:{[keys]:saved[keys]},set:async items=>Object.assign(saved,items)}},
+ tabs:{query:async()=>[{id:1,url:'https://example.org/'}],sendMessage:async()=>{},create:async()=>{}}};
+ <\/script>`
+ document.querySelector('iframe').srcdoc=html.replace('<head>','<head>'+shim)
+})
+</script></html>

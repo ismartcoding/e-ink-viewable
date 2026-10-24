@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>High contrast fixture</title>
+<style>
+html{background:#eef2f3;color:#334155;font:16px sans-serif}body{margin:24px}
+nav{display:flex;flex-direction:column;width:240px;gap:8px}button{font:inherit;padding:8px 16px;border:0;border-radius:8px;background:transparent;color:#64748b;text-align:left;transition:all .15s}
+.selected{background:#1e293b;color:#fff}.badge{background:#e2e8f0;color:#111827;float:right;padding:0 4px;border-radius:4px}
+button:hover{background:#cbd5e1}button.selected:hover{background:#1e293b}
+button svg{width:16px;height:16px;fill:currentColor}
+#move{position:absolute;left:352px;top:24px;width:32px;height:32px;background:#0c5299;transition:all 60s linear}#move.moving{transform:translateX(96px)}
+.panel{margin-top:16px;padding:16px;background:#fff}.row{width:800px;height:128px;max-width:100%;background:#dbeafe}
+#tip::after{content:'Tip';background:#111;color:white;width:160px;height:48px}
+#pseudo.selected::before{content:'';position:absolute;inset:0;background:#1e293b;border-radius:8px}#pseudo{position:relative}#pseudo span{position:relative}
+#hero{position:relative;width:240px;height:64px;background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="240" height="64"%3E%3Cpath fill="%23111827" d="M0 0h240v64H0z"/%3E%3C/svg%3E');color:white}
+#hero strong{color:white}#cssom{color:#333}input:checked+label{background:#1e293b;color:#fff}
+#dark{background:#111;color:#ddd}#dark button{background:#222;color:#ddd}#dark .selected{background:white;color:#111}
+#textonly button{background:transparent;color:#777}#textonly .selected{color:#00f}
+#under button{position:relative;background:transparent;color:#333}#under .selected::after{content:'';position:absolute;bottom:0;left:0;width:100%;height:4px;background:#00f}
+.ancestor-on .deep button:first-child,#data[data-state="on"]{background:#123;color:white}
+#checks{margin-top:16px}#late{display:block}.probe{margin-top:8px}
+</style>
+<nav id="menu"><button class="selected" id="all"><svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"/></svg> All <span class="badge">126</span></button><button id="pending">Pending <span class="badge">116</span></button><button id="progress">In progress <span class="badge">0</span></button><button id="blocked">Blocked <span class="badge">4</span></button></nav>
+<p id="outside">Click here to leave the menu.</p><div id="move"></div>
+<section class="panel"><button id="pseudo" class="selected"><span>Pseudo surface</span></button><div id="hero"><strong>Photo overlay</strong></div><button id="tip">Tooltip</button></section>
+<section class="panel"><input id="radio" type="checkbox"><label for="radio">Checkable label</label><div id="cssom">Dynamic stylesheet</div><div id="late"></div><div id="important" style="background-color:rgb(20,20,20)!important;color:rgb(255,255,255)!important">Authored important paint</div></section>
+<section class="panel" id="dark"><button class="selected">Light selected</button><button>Dark peer</button></section>
+<section class="panel" id="textonly"><button class="selected">Accent text</button><button>Plain text</button><button>Plain peer</button></section>
+<section class="panel" id="under"><button class="selected">Underline selected</button><button>Underline peer</button></section>
+<section class="panel" id="ancestor"><div class="deep"><button>Ancestor state</button><button>Ancestor peer</button></div></section>
+<section class="panel"><button id="data">Data state</button><button class="row" id="large" aria-selected="true">Large selected row</button></section>
+<input id="masked-field" value="Masked text" style="mask-image:linear-gradient(to left,transparent,white 10%);color:#123;background:transparent"><header id="blurred-header" style="background:rgba(32,40,64,.9);color:white;backdrop-filter:blur(16px)">Glass toolbar</header>
+<div id="checks">Running…</div>
+<script src="../../src/color.js"></script><script src="../../src/contrast.js"></script><script src="../../src/contrast-inline.js"></script><script src="../../src/contrast-output.js"></script><script src="../../src/contrast-dom.js"></script>
+<script>
+const size=Number(new URLSearchParams(parent.location.search).get('large')||0)
+let periodic, initialPhase=true
+const engine = EinkContrastDom.createContrastEngine(EinkColor, EinkContrast, { recheckInterval:250, onError:error => { throw error },
+ repeat:fn=>{periodic=fn;return setInterval(fn,size?1000:250)},cancelRepeat:clearInterval,
+ schedule:fn=>requestAnimationFrame(()=>{if(size && initialPhase && periodic)periodic();fn()}) })
+const menu = document.querySelector('#menu')
+for (const button of menu.children) button.addEventListener('click', () => { for (const item of menu.children) item.classList.toggle('selected', item === button) })
+menu.addEventListener('keydown',event=>{if(event.key!=='ArrowUp'&&event.key!=='ArrowDown')return;event.preventDefault();const items=Array.from(menu.children);const index=(items.indexOf(event.target)+(event.key==='ArrowUp'?items.length-1:1))%items.length;items[index].click();items[index].focus()})
+if(size){const section=document.createElement('section');section.setAttribute('aria-hidden','true');for(let i=0;i<size;i++){const b=document.createElement('button');b.textContent='Item '+i;section.appendChild(b)}document.body.appendChild(section)}
+const initialStart=performance.now()
+engine.start(document)
+const get = selector => document.querySelector(selector)
+const css = selector => getComputedStyle(typeof selector === 'string' ? get(selector) : selector)
+const results = []
+let initialMs=0
+const frame = () => new Promise(resolve => requestAnimationFrame(resolve))
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+async function settle() { for (let i=0;i<Math.max(120,Math.ceil(engine.stats().nodes/192)*16);i++) { await frame(); if(engine.stats().pending===0) {await frame(); if(engine.stats().pending===0)return} } throw Error('Queue did not settle') }
+async function reconcileUntil(predicate) { for(let i=0;i<2*Math.ceil(engine.stats().nodes/192)+2;i++){periodic();await settle();if(predicate())return}throw Error('Periodic reconciliation did not converge within two bounded passes') }
+function check(name, fn) {try {fn();results.push({name,pass:true})}catch(error){results.push({name,pass:false,error:error.message})}parent.postMessage({type:'contrast-results',progress:name,results,stats:engine.stats()},'*')}
+function equal(actual, expected) {if(actual!==expected)throw Error(actual+' != '+expected)}
+async function run() {
+ await settle()
+ initialMs=performance.now()-initialStart
+ initialPhase=false
+ if(size)check('In-flight periodic ticks neither refill work nor repeat guard compilation',()=>{const s=engine.stats();if(s.transactions>Math.ceil(s.nodes/192)+2)throw Error('Periodic work refilled the queue');if(s.guardPasses>2)throw Error('Guards repeated in one sweep');if(s.rules>128)throw Error('Identical node paints did not share rules')})
+ check('Initial selected fill and foreground',()=>{equal(css('#all').backgroundColor,'rgb(0, 0, 0)');equal(css('#all').color,'rgb(255, 255, 255)')})
+ check('Masked input text keeps a contrasting background',()=>{equal(css('#masked-field').color,'rgb(0, 0, 0)');if(css('#masked-field').backgroundColor==='rgb(0, 0, 0)')throw Error('Text field was painted as an icon')})
+ check('A blurred toolbar converts to white with black text',()=>{equal(css('#blurred-header').backgroundColor,'rgb(255, 255, 255)');equal(css('#blurred-header').color,'rgb(0, 0, 0)');equal(css('#all').backgroundColor,'rgb(0, 0, 0)')})
+ check('Nested badge and icon',()=>{equal(css('#all .badge').color,'rgb(0, 0, 0)');equal(css('#all path').fill,'rgb(255, 255, 255)')})
+ for(const id of ['pending','progress','blocked']) {get('#'+id).click();await settle()}
+ check('Only the latest selected menu retains fill',()=>{equal(css('#blocked').backgroundColor,'rgb(0, 0, 0)');for(const id of ['all','pending','progress'])equal(css('#'+id).backgroundColor,'rgba(0, 0, 0, 0)')})
+ check('Light selected state on dark theme remains distinguishable',()=>{equal(css('#dark .selected').backgroundColor,'rgb(0, 0, 0)');equal(css('#dark .selected').color,'rgb(255, 255, 255)')})
+ check('Text-only state remains readable and distinct',()=>{equal(css('#textonly .selected').color,'rgb(0, 0, 0)');if(css('#textonly .selected').boxShadow==='none')throw Error('Accent distinction disappeared')})
+ check('Underline state remains a line without a new filled rectangle',()=>{equal(getComputedStyle(get('#under .selected'),'::after').backgroundColor,'rgb(0, 0, 0)');equal(css('#under .selected').backgroundColor,'rgba(0, 0, 0, 0)')})
+ check('Large state uses white surface and an inset edge',()=>{equal(css('#large').backgroundColor,'rgb(255, 255, 255)');if(!css('#large').boxShadow.includes('inset'))throw Error('Missing large state edge')})
+ get('#ancestor').classList.add('ancestor-on');get('#data').setAttribute('data-state','on')
+ await settle()
+ check('Ancestor selectors and data attributes update descendant paint',()=>{equal(css('.deep button').backgroundColor,'rgb(0, 0, 0)');equal(css('#data').backgroundColor,'rgb(0, 0, 0)')})
+ check('Photo foreground stays white',()=>equal(css('#hero strong').color,'rgb(255, 255, 255)'))
+ check('Selected pseudo surface coordinates with text',()=>{equal(getComputedStyle(get('#pseudo'),'::before').backgroundColor,'rgb(0, 0, 0)');equal(css('#pseudo span').color,'rgb(255, 255, 255)')})
+ get('#radio').checked=true
+ get('#radio').dispatchEvent(new Event('change',{bubbles:true}))
+ await settle()
+ check('Native checked sibling label is converted',()=>equal(css('label').backgroundColor,'rgb(0, 0, 0)'))
+ const root=get('#late').attachShadow({mode:'open'})
+ root.innerHTML='<style>button{background:transparent;color:#555;padding:8px}button[aria-selected="true"]{background:#123;color:white}</style><button aria-selected="true">One</button><button>Two</button>'
+ await reconcileUntil(()=>css(root.querySelector('button')).backgroundColor==='rgb(0, 0, 0)')
+ check('Late shadow root is discovered',()=>equal(css(root.querySelector('button')).backgroundColor,'rgb(0, 0, 0)'))
+ root.querySelector('button').removeAttribute('aria-selected');root.querySelectorAll('button')[1].setAttribute('aria-selected','true')
+ await settle()
+ check('Shadow state mutations are observed',()=>equal(css(root.querySelectorAll('button')[1]).backgroundColor,'rgb(0, 0, 0)'))
+ const sheet=new CSSStyleSheet();sheet.replaceSync('#cssom{background:#142b36;color:white}')
+ document.adoptedStyleSheets=[sheet]
+ await reconcileUntil(()=>css('#cssom').backgroundColor==='rgb(255, 255, 255)')
+ check('Unsignaled CSSOM change is reconciled',()=>equal(css('#cssom').backgroundColor,'rgb(255, 255, 255)'))
+ check('Inline important author paint is converted',()=>{equal(css('#important').backgroundColor,'rgb(255, 255, 255)');equal(css('#important').color,'rgb(0, 0, 0)')})
+ get('#important').style.setProperty('color','rgb(222, 222, 222)','important')
+ get('#important').style.setProperty('border-radius','8px')
+ await settle()
+ check('Inline author updates are converted without observer loops',()=>{equal(css('#important').color,'rgb(0, 0, 0)');equal(engine.stats().failures,0)})
+ get('#radio').checked=false
+ await reconcileUntil(()=>css('label').backgroundColor==='rgba(0, 0, 0, 0)')
+ check('Programmatic native state changes without events are reconciled',()=>equal(css('label').backgroundColor,'rgba(0, 0, 0, 0)'))
+ const countBeforeDetach=engine.stats().roots
+ const host=document.createElement('div');const temp=host.attachShadow({mode:'open'});temp.innerHTML='<span>Temporary shadow</span>';document.body.appendChild(host)
+ await settle();host.remove();await settle()
+ check('Detached shadow roots release observers and rules',()=>equal(engine.stats().roots,countBeforeDetach))
+ const rendered=Array.from(document.querySelectorAll('style')).find(el=>el.sheet && Array.from(el.sheet.cssRules).some(r=>(r.selectorText||'').includes('data-eink-contrast')))
+ rendered.remove();get('#blocked').removeAttribute('data-eink-contrast')
+ await reconcileUntil(()=>css('#blocked').backgroundColor==='rgb(0, 0, 0)'&&get('#blocked').hasAttribute('data-eink-contrast'))
+ check('Removed rendering sheet and hook are restored',()=>equal(css('#blocked').backgroundColor,'rgb(0, 0, 0)'))
+ get('#move').classList.add('moving')
+ await sleep(120);await settle()
+ const animation=get('#move').getAnimations().find(a=>a.transitionProperty==='transform')
+ check('Unrelated transform transition survives source sampling',()=>{if(!animation || animation.playState!=='running')throw Error('Transform transition was cancelled')})
+ get('#pending').click();await settle()
+ check('Sampling did not cancel unrelated transform',()=>{if(animation.playState!=='running')throw Error('Transform transition was cancelled')})
+ const before=engine.stats().writes
+ engine.invalidate(get('#blocked'));await settle()
+ check('Unchanged input produces no new rule writes',()=>equal(engine.stats().writes,before))
+ const count=engine.stats().rules
+ for(let i=0;i<32;i++){get(i%2?'#all':'#blocked').click();await settle()}
+ check('Repeated selection does not grow rules',()=>{if(engine.stats().rules>count+4)throw Error('Rules grew: '+count+' -> '+engine.stats().rules)})
+ engine.stop()
+ check('Stop removes owned hooks and style layers',()=>{equal(engine.stats().rules,0);equal(document.querySelectorAll('[data-eink-contrast]').length,0)})
+ check('Stop restores latest inline author values and priority',()=>{equal(css('#important').color,'rgb(222, 222, 222)');equal(get('#important').style.getPropertyPriority('color'),'important');equal(css('#important').borderRadius,'8px')})
+ check('Stop restores author paint without stale inline writes',()=>{equal(css('#all').backgroundColor,'rgb(30, 41, 59)');equal(get('#all').getAttribute('style'),null)})
+ engine.start(document);await settle()
+ get('#blocked').click();await settle()
+ const data={type:'contrast-results',environment:navigator.userAgent,initialMs,pass:results.filter(r=>r.pass).length,total:results.length,results,stats:engine.stats()}
+ get('#checks').textContent=results.every(r=>r.pass)?'PASS '+results.length+' browser checks':'FAIL '+JSON.stringify(results.filter(r=>!r.pass))
+ parent.postMessage(data,'*')
+}
+run().catch(error=>{get('#checks').textContent=error.stack;parent.postMessage({type:'contrast-results',environment:navigator.userAgent,error:error.stack,stats:engine.stats()},'*')})
+</script></html>

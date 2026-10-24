@@ -1,0 +1,50 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>High contrast policy boundaries</title>
+<style>
+html{font:16px sans-serif}body{margin:24px;background:#0b100e;color:#ddd;animation:page-paint 2s infinite alternate}
+@keyframes page-paint{from{background:#0b100e;color:#ddd}to{background:#18261e;color:#eee}}
+@keyframes move{to{transform:translateX(32px)}}
+nav{display:flex;gap:8px;margin-bottom:16px}button{padding:8px 16px;border:1px solid #456;background:#123;color:white}
+#colors button:nth-child(2){background:#234}#colors button:nth-child(3){background:#345}#colors button:nth-child(4){background:#456}#colors button:nth-child(5){background:#567}#colors button:nth-child(6){background:#678}
+.effects{background:#142318;color:#ddd;filter:invert(1);mix-blend-mode:difference;padding:16px;margin-bottom:16px}
+.pseudo::after{content:'Generated label';background:#123;color:white;filter:invert(1);mix-blend-mode:difference}
+#photo{width:240px;height:64px;background:#111 url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="240" height="64"%3E%3Cpath fill="%23111" d="M0 0h240v64H0z"/%3E%3C/svg%3E');color:white;filter:sepia(.5)}
+#moving{width:32px;height:32px;background:#123;animation:move 60s linear infinite}
+custom-control{display:block;padding:16px;margin-top:16px}pre{white-space:pre-wrap}
+</style>
+<nav id="colors"><button aria-selected="true">One</button><button>Two</button><button>Three</button><button>Four</button><button>Five</button><button>Six</button></nav>
+<section class="effects"><span id="effect-text">Ordinary effects must convert</span></section>
+<p class="pseudo">Pseudo effect: </p><div id="photo"><strong>Real photo foreground</strong></div><div id="moving"></div>
+<custom-control style="color:white!important;background-color:rgb(20,20,20)!important">Opaque custom control</custom-control>
+<p id="ordinary">A custom control must not exempt this page.</p><pre id="results">Running…</pre>
+<script>
+const store={'d:all':'contrast'};window.chrome={storage:{local:{get:async keys=>Array.isArray(keys)?Object.fromEntries(keys.map(key=>[key,store[key]])):{[keys]:store[keys]},set:async items=>Object.assign(store,items)}},runtime:{onMessage:{addListener(){}}}};
+let customStyleChanges=0;customElements.define('custom-control',class extends HTMLElement{static observedAttributes=['style'];attributeChangedCallback(){customStyleChanges++}});customStyleChanges=0;
+</script>
+<script src="../../src/color.js"></script><script src="../../src/engine.js"></script><script src="../../src/contrast.js"></script><script src="../../src/contrast-inline.js"></script><script src="../../src/contrast-output.js"></script><script src="../../src/contrast-dom.js"></script><script src="../../src/toggle.js"></script>
+<script>let engine;const create=EinkContrastDom.createContrastEngine;EinkContrastDom.createContrastEngine=(...args)=>(engine=create(...args))</script><script src="../../src/inject.js"></script>
+<script>
+const get=selector=>document.querySelector(selector),css=selector=>getComputedStyle(typeof selector==='string'?get(selector):selector),results=[]
+const frame=()=>new Promise(resolve=>requestAnimationFrame(resolve))
+async function settle(){for(let i=0;i<240;i++){await frame();if(engine&&engine.stats().pending===0){await frame();if(engine.stats().pending===0)return}}throw Error('Conversion did not settle')}
+function equal(actual,expected){if(actual!==expected)throw Error(actual+' != '+expected)}
+function check(name,fn){try{fn();results.push({name,pass:true})}catch(error){results.push({name,pass:false,error:error.message})}}
+const options=[...get('#colors').children]
+for(const button of options)button.addEventListener('click',()=>{for(const peer of options)peer.setAttribute('aria-selected',String(peer===button))});
+(async()=>{
+ await settle()
+ check('Animated document paints convert',()=>{equal(css(document.body).backgroundColor,'rgb(255, 255, 255)');equal(css('#ordinary').color,'rgb(0, 0, 0)')})
+ check('Color animation stays running while its paint is overridden',()=>{if(!document.body.getAnimations().some(animation=>animation.playState==='running'))throw Error('Animation was cancelled')})
+ check('Ordinary filter and blend effects cannot turn converted surfaces black',()=>{equal(css('.effects').backgroundColor,'rgb(255, 255, 255)');equal(css('.effects').filter,'none');equal(css('.effects').mixBlendMode,'normal');equal(css('#effect-text').color,'rgb(0, 0, 0)')})
+ check('Generated text effects convert with their surface',()=>{const p=getComputedStyle(get('.pseudo'),'::after');equal(p.color,'rgb(0, 0, 0)');equal(p.backgroundColor,'rgb(255, 255, 255)');equal(p.filter,'none');equal(p.mixBlendMode,'normal')})
+ check('Many source colors keep white surfaces and a selected cue',()=>{equal(css(options[0]).backgroundColor,'rgb(0, 0, 0)');equal(css(options[0]).color,'rgb(255, 255, 255)');for(const peer of options.slice(1))equal(css(peer).backgroundColor,'rgb(255, 255, 255)')})
+ options.at(-1).click();await settle()
+ check('Selection transfers across a group with six source colors',()=>{equal(css(options.at(-1)).backgroundColor,'rgb(0, 0, 0)');equal(css(options.at(-1)).color,'rgb(255, 255, 255)');equal(css(options[0]).backgroundColor,'rgb(255, 255, 255)')})
+ check('Actual photo paint and its filter remain intact',()=>{equal(css('#photo strong').color,'rgb(255, 255, 255)');equal(css('#photo').filter,'sepia(0.5)');if(css('#photo').backgroundImage==='none')throw Error('Photo was removed')})
+ check('A custom control stays local without style callback churn',()=>{equal(css('custom-control').backgroundColor,'rgb(20, 20, 20)');equal(css('#ordinary').color,'rgb(0, 0, 0)');equal(customStyleChanges,0)})
+ check('An unrelated transform animation stays running',()=>{if(!get('#moving').getAnimations().some(animation=>animation.playState==='running'))throw Error('Transform animation was cancelled')})
+ engine.stop()
+ check('Stopping restores effects and author inline paint',()=>{equal(css('.effects').filter,'invert(1)');equal(css('.effects').mixBlendMode,'difference');equal(get('custom-control').style.getPropertyPriority('color'),'important');equal(customStyleChanges,0)})
+ get('#results').textContent=JSON.stringify({pass:results.filter(r=>r.pass).length,total:results.length,results,stats:engine.stats()},null,2)
+ document.title=(results.every(r=>r.pass)?'PASS':'FAIL')+' policy boundaries'
+})().catch(error=>{get('#results').textContent=JSON.stringify({error:error.stack})})
+</script></html>

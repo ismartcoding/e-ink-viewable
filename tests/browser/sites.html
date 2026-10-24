@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Website source-style replay</title>
+<style>body{margin:16px;background:white;color:black;font:16px system-ui}h1{font-size:24px}#cases{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}article{border:1px solid black;padding:8px;overflow:hidden}h2{font-size:16px;margin:0 0 8px}iframe{width:1280px;height:720px;zoom:.25;border:0}pre{white-space:pre-wrap}p{margin:8px 0}</style>
+<h1>20 website source-style replays</h1>
+<p>Captured public styles and geometry, with neutral text and media placeholders. This does not run the extension on the live sites.</p>
+<p id="summary">Running…</p><details><summary>Detailed results</summary><pre id="results">Running…</pre></details><div id="cases"></div>
+<script>
+(async()=>{
+ const data=await fetch('../fixtures/contrast-sites.json').then(r=>r.json())
+ const html=await fetch('site-replay-fixture.html').then(r=>r.text())
+ const results=[]
+ for(let index=0;index<data.sites.length;index++){
+  const site=data.sites[index],card=document.createElement('article'),title=document.createElement('h2'),frame=document.createElement('iframe')
+  title.textContent=site.name;frame.title=site.name+' replay';card.append(title,frame);document.querySelector('#cases').append(card)
+  const result=await new Promise(resolve=>{
+   const timeout=setTimeout(()=>{window.removeEventListener('message',receive);resolve({name:site.name,pass:false,error:'Replay timed out'})},15000)
+   function receive(event){if(event.source!==frame.contentWindow||event.data.type!=='site-replay-result')return;clearTimeout(timeout);window.removeEventListener('message',receive);resolve(event.data)}
+   window.addEventListener('message',receive)
+   frame.srcdoc=html.replace('REPLAY_INDEX',String(index))
+  })
+  results.push(result)
+  document.querySelector('#summary').textContent=results.filter(r=>r.pass).length+' / '+results.length+' replays passed'+(results.length===data.sites.length?' — complete':'')
+  document.querySelector('#results').textContent=JSON.stringify({pass:results.filter(r=>r.pass).length,total:results.length,complete:results.length===data.sites.length,results},null,2)
+ }
+})().catch(error=>{document.querySelector('#results').textContent=error.stack})
+</script></html>

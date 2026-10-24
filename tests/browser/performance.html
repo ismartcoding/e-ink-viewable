@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>High contrast performance contracts</title>
+<style>
+html,body,article,#items>div{background:#fff;color:#000;-webkit-text-fill-color:#000}
+html{font:16px sans-serif}body{margin:24px}nav{display:flex;gap:8px;margin-bottom:16px}
+button{font:inherit;padding:8px 16px;border:2px solid #000;background:transparent;color:#000;-webkit-text-fill-color:currentColor;transition:color .15s,background-color .15s}
+button.selected{background:#20285a;color:#fff}#items>div{height:32px}pre{white-space:pre-wrap}
+</style>
+<h1>High contrast performance contracts</h1>
+<nav><button id="first" class="selected" aria-selected="true">First option</button><button id="second" aria-selected="false">Second option</button></nav>
+<article id="items" aria-hidden="true"></article>
+<aside id="authored"><div style="color:rgb(80,80,80)!important;-webkit-text-fill-color:rgb(80,80,80)!important">Important author text one</div><div style="color:rgb(80,80,80)!important;-webkit-text-fill-color:rgb(80,80,80)!important">Important author text two</div></aside>
+<pre id="results">Running…</pre>
+<script src="../../src/color.js"></script>
+<script src="../../src/contrast.js"></script>
+<script src="../../src/contrast-inline.js"></script>
+<script src="../../src/contrast-output.js"></script>
+<script src="../../src/contrast-dom.js"></script>
+<script>
+const params = new URLSearchParams(location.search)
+const size = Math.max(1, Math.min(10000, Number(params.get('size')) || 1000))
+const paint = params.get('paint') === 'gray' ? 'gray' : 'white'
+const batchSize = 192
+const readBudget = batchSize * 6
+if (paint === 'gray') {
+    const style = document.createElement('style')
+    style.textContent = '#items>div{color:rgb(80,80,80);-webkit-text-fill-color:rgb(80,80,80)}'
+    document.head.appendChild(style)
+}
+const itemRoot = document.querySelector('#items')
+const ordinary = []
+const fragment = document.createDocumentFragment()
+for (let i = 0; i < size; i++) {
+    const item = document.createElement('div')
+    item.textContent = 'Ordinary article line ' + i
+    ordinary.push(item)
+    fragment.appendChild(item)
+}
+itemRoot.appendChild(fragment)
+const ordinarySet = new Set(ordinary)
+const important = Array.from(document.querySelector('#authored').children)
+const importantStyles = new Set(important.map(el => el.style))
+const authorStyles = important.map(el => ['color', '-webkit-text-fill-color'].map(prop => ({ prop,
+    value: el.style.getPropertyValue(prop), priority: el.style.getPropertyPriority(prop) })))
+const first = document.querySelector('#first')
+const second = document.querySelector('#second')
+for (const button of [first, second]) button.addEventListener('click', () => {
+    for (const item of [first, second]) {
+        item.classList.toggle('selected', item === button)
+        item.setAttribute('aria-selected', String(item === button))
+    }
+})
+const nativeStyle = window.getComputedStyle.bind(window)
+const restorers = []
+const phases = {}
+const checks = []
+const errors = []
+const tokenMembers = new Map()
+let periodic, current, measuring = false, frameMembers, frameOrdinaryMembers
+function updateHookMembers(el, value) {
+    for (const token of (el.getAttribute('data-eink-contrast') || '').split(/\s+/)) tokenMembers.get(token)?.delete(el)
+    for (const token of (value || '').split(/\s+/)) {
+        if (!token) continue
+        if (!tokenMembers.has(token)) tokenMembers.set(token, new Set())
+        tokenMembers.get(token).add(el)
+    }
+}
+function wrapMethod(target, name, measure) {
+    const original = target[name]
+    target[name] = function (...args) {
+        if (measuring) measure(this, args)
+        return original.apply(this, args)
+    }
+    restorers.push(() => { target[name] = original })
+}
+function wrapSetter(target, name, measure) {
+    const original = Object.getOwnPropertyDescriptor(target, name)
+    if (!original || !original.set || !original.configurable) return
+    Object.defineProperty(target, name, { ...original, set(value) {
+        if (measuring) measure(this, value)
+        return original.set.call(this, value)
+    } })
+    restorers.push(() => Object.defineProperty(target, name, original))
+}
+wrapMethod(Element.prototype, 'setAttribute', (el, args) => {
+    if (args[0] !== 'data-eink-contrast') return
+    current.hookWrites++
+    if (ordinarySet.has(el)) current.ordinaryHookWrites++
+    updateHookMembers(el, args[1])
+})
+wrapMethod(Element.prototype, 'removeAttribute', (el, args) => {
+    if (args[0] !== 'data-eink-contrast') return
+    current.hookWrites++
+    if (ordinarySet.has(el)) current.ordinaryHookWrites++
+    updateHookMembers(el, '')
+})
+for (const name of ['insertRule', 'deleteRule', 'replaceSync', 'replace']) {
+    wrapMethod(CSSStyleSheet.prototype, name, () => { current.cssomWrites++ })
+}
+wrapSetter(CSSStyleDeclaration.prototype, 'cssText', (style, value) => {
+    if (style.parentRule) {
+        current.cssomWrites++
+        const rule = style.parentRule
+        const before = style.cssText
+        const clearing = before !== '' && value === ''
+        const resuming = before === '' && value !== '' && current.pausedRules.has(rule)
+        if (clearing || resuming) {
+            current.samplingCssomWrites++
+            current[clearing ? 'samplingPauses' : 'samplingResumes']++
+            current.sampledRules.add(rule)
+            current.sampledSelectors.add(rule.selectorText)
+            if (clearing) {
+                current.pausedRules.add(rule)
+                const token = rule.selectorText.match(/data-eink-contrast~="([^"]+)"/)?.[1]
+                for (const member of tokenMembers.get(token) || []) {
+                    current.sampledMembers.add(member)
+                    frameMembers?.add(member)
+                    if (ordinarySet.has(member)) current.ordinarySampledMembers.add(member)
+                    if (ordinarySet.has(member)) frameOrdinaryMembers?.add(member)
+                }
+                current.maxSamplingMembers = Math.max(current.maxSamplingMembers, current.sampledMembers.size)
+                current.maxOrdinarySamplingMembers = Math.max(current.maxOrdinarySamplingMembers, current.ordinarySampledMembers.size)
+            } else current.pausedRules.delete(rule)
+        }
+    }
+    else {
+        current.inlineWrites++
+        if (importantStyles.has(style)) current.importantInlineWrites++
+    }
+})
+for (const name of ['setProperty', 'removeProperty']) {
+    wrapMethod(CSSStyleDeclaration.prototype, name, style => {
+        if (style.parentRule) current.cssomWrites++
+        else {
+            current.inlineWrites++
+            if (importantStyles.has(style)) current.importantInlineWrites++
+        }
+    })
+}
+wrapSetter(CSSStyleRule.prototype, 'selectorText', () => { current.cssomWrites++ })
+wrapSetter(StyleSheet.prototype, 'disabled', (sheet, value) => { if (sheet.disabled !== value) current.sheetToggles++ })
+wrapMethod(Element.prototype, 'getBoundingClientRect', () => { current.rectReads++ })
+const engine = EinkContrastDom.createContrastEngine(EinkColor, EinkContrast, {
+    batchSize,
+    styles(el, pseudo) {
+        if (measuring) {
+            current.sourceReads++
+            current[pseudo ? 'pseudoReads' : 'mainReads']++
+            if (ordinarySet.has(el)) current.unrelatedReads++
+        }
+        return nativeStyle(el, pseudo)
+    },
+    schedule(fn) {
+        requestAnimationFrame(() => {
+            const phase = current
+            const before = phase?.sourceReads || 0
+            const hooksBefore = phase?.hookWrites || 0
+            const ordinaryHooksBefore = phase?.ordinaryHookWrites || 0
+            const parentMembers = frameMembers, parentOrdinaryMembers = frameOrdinaryMembers
+            frameMembers = new Set()
+            frameOrdinaryMembers = new Set()
+            const started = performance.now()
+            try { fn() }
+            finally {
+                if (measuring && current === phase) {
+                    const elapsed = performance.now() - started
+                    const reads = phase.sourceReads - before
+                    phase.frames++
+                    phase.frameReads += reads
+                    phase.maxFrameSourceReads = Math.max(phase.maxFrameSourceReads, reads)
+                    phase.frameHookWrites += phase.hookWrites - hooksBefore
+                    phase.maxFrameHookWrites = Math.max(phase.maxFrameHookWrites, phase.hookWrites - hooksBefore)
+                    phase.maxFrameOrdinaryHookWrites = Math.max(phase.maxFrameOrdinaryHookWrites, phase.ordinaryHookWrites - ordinaryHooksBefore)
+                    phase.maxFrameSamplingMembers = Math.max(phase.maxFrameSamplingMembers, frameMembers.size)
+                    phase.maxFrameOrdinarySamplingMembers = Math.max(phase.maxFrameOrdinarySamplingMembers, frameOrdinaryMembers.size)
+                    phase.callbackTotalMs += elapsed
+                    phase.maxCallbackMs = Math.max(phase.maxCallbackMs, elapsed)
+                }
+                frameMembers = parentMembers
+                frameOrdinaryMembers = parentOrdinaryMembers
+            }
+        })
+    },
+    repeat(fn) { periodic = fn; return 1 },
+    cancelRepeat() { periodic = undefined },
+    onError(error) { errors.push(error.message) }
+})
+function begin(name) {
+    current = { sourceReads: 0, mainReads: 0, pseudoReads: 0, unrelatedReads: 0, hookWrites: 0, ordinaryHookWrites: 0, rectReads: 0,
+        cssomWrites: 0, samplingCssomWrites: 0, samplingPauses: 0, samplingResumes: 0, inlineWrites: 0, importantInlineWrites: 0, sheetToggles: 0,
+        frames: 0, frameReads: 0, maxFrameSourceReads: 0, maxSamplingMembers: 0, maxOrdinarySamplingMembers: 0,
+        maxFrameSamplingMembers: 0, maxFrameOrdinarySamplingMembers: 0,
+        frameHookWrites: 0, maxFrameHookWrites: 0, maxFrameOrdinaryHookWrites: 0, callbackTotalMs: 0, maxCallbackMs: 0,
+        sampledRules: new Set(), pausedRules: new Set(), sampledSelectors: new Set(), sampledMembers: new Set(), ordinarySampledMembers: new Set(),
+        statsBefore: engine.stats() }
+    phases[name] = current
+    current.started = performance.now()
+    measuring = true
+}
+function finish() {
+    current.elapsedMs = performance.now() - current.started
+    delete current.started
+    current.unframedSourceReads = current.sourceReads - current.frameReads
+    current.unframedHookWrites = current.hookWrites - current.frameHookWrites
+    current.stats = engine.stats()
+    current.outputRuleWrites = current.stats.writes - current.statsBefore.writes
+    current.samplingRuleWrites = (current.stats.samplingWrites || 0) - (current.statsBefore.samplingWrites || 0)
+    current.samplingGroups = current.sampledRules.size
+    current.sampledSelectors = [...current.sampledSelectors]
+    delete current.statsBefore
+    delete current.sampledRules
+    delete current.pausedRules
+    delete current.sampledMembers
+    delete current.ordinarySampledMembers
+    measuring = false
+}
+const frame = () => new Promise(resolve => requestAnimationFrame(resolve))
+async function settle() {
+    const limit = Math.max(400, Math.ceil(size / batchSize) * 16)
+    for (let i = 0; i < limit; i++) {
+        await frame()
+        if (engine.stats().pending !== 0) continue
+        await frame()
+        if (engine.stats().pending === 0) return
+    }
+    throw Error('Scheduled work did not settle within ' + limit + ' animation frames')
+}
+function check(name, pass, detail) { checks.push({ name, pass: !!pass, ...(pass ? {} : { detail }) }) }
+function bounded(name) {
+    const metrics = phases[name]
+    const frameReadBudget = name === 'initial' ? readBudget : batchSize * 4
+    check(name + ': source-reading work stays within its frame budget', metrics.maxFrameSourceReads <= frameReadBudget,
+        metrics.maxFrameSourceReads + ' > ' + frameReadBudget)
+    check(name + ': at most one article hook-writing batch per frame', metrics.maxFrameOrdinaryHookWrites <= batchSize,
+        metrics.maxFrameOrdinaryHookWrites + ' > ' + batchSize)
+    check(name + ': sampling CSSOM writes match paired pause and resume operations', metrics.samplingRuleWrites === metrics.samplingCssomWrites
+        && metrics.samplingPauses === metrics.samplingResumes && metrics.samplingRuleWrites === 2 * metrics.samplingPauses,
+        { reported: metrics.samplingRuleWrites, observed: metrics.samplingCssomWrites, pauses: metrics.samplingPauses, resumes: metrics.samplingResumes })
+    check(name + ': each frame samples at most two article cohorts and their ancestors', metrics.maxFrameOrdinarySamplingMembers <= batchSize * 2
+        && metrics.maxFrameSamplingMembers <= batchSize * 2 + 32,
+        { ordinary: metrics.maxFrameOrdinarySamplingMembers, all: metrics.maxFrameSamplingMembers })
+}
+function blackWhite(value) { return value === 'rgb(0, 0, 0)' || value === 'rgb(255, 255, 255)' }
+async function run() {
+    begin('initial')
+    const started = performance.now()
+    const sourceBefore = current.sourceReads, hooksBefore = current.hookWrites, rectsBefore = current.rectReads
+    engine.start(document)
+    current.startCallMs = performance.now() - started
+    current.startCallSourceReads = current.sourceReads - sourceBefore
+    current.startCallHookWrites = current.hookWrites - hooksBefore
+    current.startCallRectReads = current.rectReads - rectsBefore
+    await settle()
+    finish()
+    bounded('initial')
+    check('Startup returns without synchronous source, geometry or hook work', phases.initial.startCallSourceReads === 0
+        && phases.initial.startCallHookWrites === 0 && phases.initial.startCallRectReads === 0,
+        { source: phases.initial.startCallSourceReads, hooks: phases.initial.startCallHookWrites, rects: phases.initial.startCallRectReads })
+    const initialHooks = ordinary.filter(el => el.hasAttribute('data-eink-contrast')).length
+    if (paint === 'white') {
+        check('Initial: unchanged article nodes have no output hooks', initialHooks === 0, initialHooks)
+        check('Initial: no hook writes on unchanged article nodes', phases.initial.ordinaryHookWrites === 0, phases.initial.ordinaryHookWrites)
+    } else {
+        check('Initial: every gray article line is converted to black text', ordinary.every(el => nativeStyle(el).color === 'rgb(0, 0, 0)'
+            && nativeStyle(el).webkitTextFillColor === 'rgb(0, 0, 0)'))
+        check('Initial: article hook writes occur inside scheduled callbacks', phases.initial.unframedHookWrites === 0, phases.initial.unframedHookWrites)
+    }
+    check('Initial: shared paint rules contain at most one batch of members', [...tokenMembers].filter(([token]) => /^p\d+$/.test(token))
+        .every(([, members]) => members.size <= batchSize))
+    check('Initial: selected control remains readable', nativeStyle(first).backgroundColor === 'rgb(0, 0, 0)' && nativeStyle(first).color === 'rgb(255, 255, 255)')
+    check('Initial: important author paint is converted', important.every(el => blackWhite(nativeStyle(el).color)))
+    begin('pointerover')
+    second.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }))
+    await settle()
+    finish()
+    bounded('pointerover')
+    check('Pointerover: zero unrelated article reads', phases.pointerover.unrelatedReads === 0, phases.pointerover.unrelatedReads)
+    check('Pointerover: zero unrelated hook writes', phases.pointerover.ordinaryHookWrites === 0, phases.pointerover.ordinaryHookWrites)
+    check('Pointerover: zero unrelated important inline writes', phases.pointerover.importantInlineWrites === 0, phases.pointerover.importantInlineWrites)
+    check('Pointerover: unrelated article paint groups remain active', phases.pointerover.maxOrdinarySamplingMembers === 0, phases.pointerover.maxOrdinarySamplingMembers)
+    begin('click')
+    second.click()
+    await settle()
+    finish()
+    bounded('click')
+    check('Click: zero unrelated article reads', phases.click.unrelatedReads === 0, phases.click.unrelatedReads)
+    check('Click: zero unrelated hook writes', phases.click.ordinaryHookWrites === 0, phases.click.ordinaryHookWrites)
+    check('Click: zero unrelated important inline writes', phases.click.importantInlineWrites === 0, phases.click.importantInlineWrites)
+    check('Click: unrelated article paint groups remain active', phases.click.maxOrdinarySamplingMembers === 0, phases.click.maxOrdinarySamplingMembers)
+    check('Click: only the latest control retains selected fill', nativeStyle(second).backgroundColor === 'rgb(0, 0, 0)'
+        && nativeStyle(second).color === 'rgb(255, 255, 255)' && nativeStyle(first).backgroundColor === 'rgba(0, 0, 0, 0)')
+    begin('idleTick')
+    const idleCallStarted = performance.now()
+    periodic()
+    current.periodicCallMs = performance.now() - idleCallStarted
+    await settle()
+    finish()
+    bounded('idleTick')
+    check('Idle tick: bounded source reads', phases.idleTick.sourceReads <= readBudget, phases.idleTick.sourceReads)
+    check('Idle tick: no persistent output writes', phases.idleTick.hookWrites === 0 && phases.idleTick.outputRuleWrites === 0 && phases.idleTick.inlineWrites === 0,
+        { hooks: phases.idleTick.hookWrites, outputRules: phases.idleTick.outputRuleWrites, cssom: phases.idleTick.cssomWrites,
+            samplingRules: phases.idleTick.samplingRuleWrites, inline: phases.idleTick.inlineWrites })
+    check('Idle tick: important nodes outside the sampled slice stay untouched', phases.idleTick.importantInlineWrites === 0, phases.idleTick.importantInlineWrites)
+    const sheet = new CSSStyleSheet()
+    sheet.replaceSync('#items>div:last-child{background:rgb(12,20,30);color:rgb(230,240,250);-webkit-text-fill-color:rgb(230,240,250);outline:3px solid rgb(12,20,30)}')
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
+    const last = ordinary[ordinary.length - 1]
+    const markerBefore = { width: nativeStyle(last).outlineWidth, style: nativeStyle(last).outlineStyle, color: nativeStyle(last).outlineColor }
+    check('CSSOM source adds an unconverted marker absent from the previous paint', markerBefore.width === '3px'
+        && markerBefore.style === 'solid' && markerBefore.color === 'rgb(12, 20, 30)', markerBefore)
+    const maxTicks = 2 * Math.ceil(engine.stats().nodes / batchSize) + 2
+    let converged = false
+    const periodicTicks = []
+    for (let i = 0; i < maxTicks; i++) {
+        const name = 'reconcileTick' + (i + 1)
+        begin(name)
+        const periodicCallStarted = performance.now()
+        periodic()
+        current.periodicCallMs = performance.now() - periodicCallStarted
+        await settle()
+        finish()
+        bounded(name)
+        const metrics = phases[name]
+        periodicTicks.push({ sourceReads: metrics.sourceReads, maxFrameSourceReads: metrics.maxFrameSourceReads,
+            maxFrameHookWrites: metrics.maxFrameHookWrites, maxFrameOrdinaryHookWrites: metrics.maxFrameOrdinaryHookWrites,
+            cssomWrites: metrics.cssomWrites, outputRuleWrites: metrics.outputRuleWrites, samplingRuleWrites: metrics.samplingRuleWrites,
+            samplingPauses: metrics.samplingPauses, samplingResumes: metrics.samplingResumes,
+            maxSamplingMembers: metrics.maxSamplingMembers, maxOrdinarySamplingMembers: metrics.maxOrdinarySamplingMembers,
+            maxFrameSamplingMembers: metrics.maxFrameSamplingMembers, maxFrameOrdinarySamplingMembers: metrics.maxFrameOrdinarySamplingMembers,
+            periodicCallMs: metrics.periodicCallMs,
+            elapsedMs: metrics.elapsedMs, maxCallbackMs: metrics.maxCallbackMs })
+        check(name + ': bounded source reads', metrics.sourceReads <= readBudget, metrics.sourceReads)
+        const style = nativeStyle(last)
+        if (style.backgroundColor === 'rgb(255, 255, 255)' && style.color === 'rgb(0, 0, 0)'
+            && style.outlineWidth === '3px' && style.outlineStyle === 'solid' && blackWhite(style.outlineColor)) { converged = true; break }
+    }
+    check('Unannounced CSSOM paint is white with black text within two bounded cycles', converged, { ticks: periodicTicks.length, maxTicks })
+    check('Engine completed without conversion failures', errors.length === 0 && engine.stats().failures === 0, errors)
+    return { type: 'contrast-performance-results', environment: navigator.userAgent, size, paint, batchSize, readBudget,
+        frameReadBudgets: { initial: readBudget, updates: batchSize * 4 }, periodicReadBudget: readBudget,
+        timerMode: 'Periodic callbacks are driven once per test tick; all queued work uses real requestAnimationFrame callbacks.',
+        writeCounters: { cssomWrites: 'All observed rule insertion, deletion, declaration and selector calls.',
+            outputRuleWrites: 'Engine-reported persistent rule changes.', samplingRuleWrites: 'Engine-reported temporary rule clearing and restoration; checked against observed CSSOM calls.',
+            sheetToggles: 'Observed stylesheet disabled changes, reported separately.' },
+        pass: checks.filter(result => result.pass).length, total: checks.length, checks, phases, periodicTicks,
+        cssomMarker: { before: markerBefore, after: { width: nativeStyle(last).outlineWidth, style: nativeStyle(last).outlineStyle,
+            color: nativeStyle(last).outlineColor } }, stats: engine.stats() }
+}
+run().then(report => {
+    measuring = false
+    engine.stop()
+    check('Stop: original important author styles are restored', important.every((el, index) => authorStyles[index].every(({ prop, value, priority }) =>
+        el.style.getPropertyValue(prop) === value && el.style.getPropertyPriority(prop) === priority)))
+    report.pass = checks.filter(result => result.pass).length
+    report.total = checks.length
+    for (const restore of restorers.reverse()) restore()
+    document.querySelector('#results').textContent = JSON.stringify(report, null, 2)
+    document.title = (report.pass === report.total ? 'PASS' : 'FAIL') + ' ' + report.pass + '/' + report.total + ' high contrast performance'
+}).catch(error => {
+    measuring = false
+    engine.stop()
+    for (const restore of restorers.reverse()) restore()
+    document.querySelector('#results').textContent = JSON.stringify({ type: 'contrast-performance-results', environment: navigator.userAgent,
+        size, paint, error: error.stack, checks, phases, stats: engine.stats() }, null, 2)
+    document.title = 'FAIL high contrast performance'
+})
+</script>
+</html>

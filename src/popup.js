@@ -11,14 +11,34 @@ const i18n = {
         await chrome.storage.local.set({ lang })
     },
     async load(lang) {
-        if (!lang) return key => chrome.i18n.getMessage(key)
-        try {
-            const url = chrome.runtime.getURL(`_locales/${lang}/messages.json`)
-            const messages = await (await fetch(url)).json()
-            return key => (messages[key] && messages[key].message) || chrome.i18n.getMessage(key)
-        } catch {
-            // unknown/removed locale: fall back to the browser language
-            return key => chrome.i18n.getMessage(key)
+        const locales = [...document.querySelectorAll('#lang-select option')].map(option => option.value).filter(Boolean)
+        const normalize = value => String(value || '').replace(/_/g, '-').toLowerCase()
+        const language = normalize(lang || chrome.i18n.getUILanguage())
+        const parts = language.split('-')
+        let locale = locales.find(value => normalize(value) === language)
+        if (!locale && parts[0] === 'zh') {
+            const traditional = parts.includes('hant') || !parts.includes('hans') && parts.some(value => ['tw', 'hk', 'mo'].includes(value))
+            locale = traditional ? 'zh_TW' : 'zh_CN'
+        }
+        locale ||= locales.find(value => normalize(value).split('-')[0] === parts[0]) || 'en'
+        const read = async value => {
+            try {
+                const response = await fetch(chrome.runtime.getURL(`_locales/${value}/messages.json`))
+                if (!response.ok) return {}
+                return await response.json()
+            } catch {
+                return {}
+            }
+        }
+        const fallback = await read('en')
+        const messages = locale === 'en' ? fallback : await read(locale)
+        const text = value => typeof value === 'string' && value.trim() ? value : ''
+        return key => {
+            let native = ''
+            if (!lang) {
+                try { native = chrome.i18n.getMessage(key) } catch {}
+            }
+            return text(native) || text(messages?.[key]?.message) || text(fallback?.[key]?.message) || key
         }
     }
 }

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Captured style replay</title>
+<script src="../../src/color.js"></script><script src="../../src/contrast.js"></script><script src="../../src/contrast-inline.js"></script><script src="../../src/contrast-output.js"></script><script src="../../src/contrast-dom.js"></script><script src="../helpers/site-replay.js"></script>
+<body><script>
+(async()=>{
+ const fixture=await fetch('../fixtures/contrast-sites.json').then(r=>r.json()),site=fixture.sites[REPLAY_INDEX]
+ const source=index=>({...fixture.defaults,...fixture.styles[index]})
+ const nodes=new Map(),sourceNodes=new Map(site.records.map(r=>[r.id,{}]))
+ const records=site.records.map(r=>({...r,node:sourceNodes.get(r.id),parent:sourceNodes.get(r.parent)||null,svgRoot:sourceNodes.get(r.svgRoot)||null,
+  style:source(r.style),pseudos:Object.fromEntries(Object.entries(r.pseudos||{}).map(([p,i])=>[p,source(i)]))}))
+ const capturedParents=new Set(records.map(r=>r.parent))
+ const directText=new Set(records.filter(r=>r.hasText&&!r.svg&&!capturedParents.has(r.node)
+  &&!['html','body','img','video','canvas','iframe','input','object','embed'].includes(r.tag)
+  &&typeof r.shape==='string'&&r.shape.slice(r.shape.indexOf(':'))===':').map(r=>r.node))
+ const plans=EinkContrast.createPlanner(EinkColor).plan(records,site.viewport)
+ const rules=[]
+ const placeholder='url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'64\' height=\'64\'%3E%3Crect width=\'64\' height=\'64\' fill=\'%23888\'/%3E%3C/svg%3E")'
+ const css=style=>Object.entries(style).map(([k,v])=>k+':'+v.replace(/url\([^)]*\)/g,placeholder)).join(';')
+ for(const r of records){
+  let el
+  if(r.tag==='html')el=document.documentElement
+  else if(r.tag==='body')el=document.body
+  else el=r.svg?document.createElementNS('http://www.w3.org/2000/svg',r.tag):document.createElement(r.tag)
+  el.id='sample-'+r.id;nodes.set(r.id,el)
+  if(r.role)el.setAttribute('role',r.role)
+  if(r.selected)el.setAttribute('aria-selected','true')
+  if(r.disabled)el.disabled=true
+  if(r.focusable)el.tabIndex=0
+ }
+ for(const r of records){
+  const el=nodes.get(r.id),parent=nodes.get(site.records.find(x=>x.id===r.id).parent)
+  if(el!==document.documentElement&&el!==document.body)(parent||document.body).appendChild(el)
+  const parentRecord=records.find(x=>x.node===r.parent)
+  const x=r.rect.left-(parentRecord?.rect.left||0),y=r.rect.top-(parentRecord?.rect.top||0)
+  rules.push('#'+el.id+'{'+css(r.style)+';position:absolute;box-sizing:border-box;margin:0;padding:0;left:'+x+'px;top:'+y+'px;width:'+r.rect.width+'px;height:'+r.rect.height+'px;font:16px sans-serif}')
+  for(const [p,style] of Object.entries(r.pseudos))rules.push('#'+el.id+p+'{'+css(style)+'}')
+ }
+ for(const r of records){const el=nodes.get(r.id);if(directText.has(r.node)&&!el.children.length)el.textContent='Text '+r.id}
+ const style=document.createElement('style');style.textContent=rules.join('\n');document.head.appendChild(style)
+ const byId=new Map(records.map(r=>['sample-'+r.id,r]))
+ const engine=EinkContrastDom.createContrastEngine(EinkColor,EinkContrast,{styles:(el,pseudo)=>{
+  const computed=getComputedStyle(el,pseudo),original=byId.get(el.id)
+  return new Proxy(computed,{get(target,key){
+   if(key==='getPropertyValue')return prop=>prop==='position'&&original&&!pseudo?original.style.position:target.getPropertyValue(prop)
+   const value=Reflect.get(target,key,target)
+   return typeof value==='function'?value.bind(target):value
+  }})
+ }})
+ engine.start(document)
+ const frame=()=>new Promise(resolve=>requestAnimationFrame(resolve))
+ for(let i=0;i<120;i++){await frame();if(!engine.stats().pending){await frame();if(!engine.stats().pending)break}}
+ const measured=EinkSiteReplay.measure({...site,records},plans,(record,pseudo)=>{
+  const computed=getComputedStyle(nodes.get(record.id),pseudo||null)
+  return Object.fromEntries([...EinkContrast.SOURCE,'color-scheme','scrollbar-color'].map(prop=>[prop,computed.getPropertyValue(prop)]))
+ })
+ const {issues}=measured,stats=engine.stats()
+ if(stats.pending||stats.failures)issues.push({error:'Engine did not settle',stats})
+ const result={type:'site-replay-result',name:site.name,pass:!issues.length,checked:measured.text.length,
+  eligibleText:measured.eligibleText.length,protectedText:measured.protectedText.length,issues,stats}
+ parent.postMessage(result,'*')
+})().catch(error=>parent.postMessage({type:'site-replay-result',pass:false,error:error.stack},'*'))
+</script></body></html>

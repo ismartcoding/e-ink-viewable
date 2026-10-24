@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Full-page media contrast regression</title>
+<style>
+html{font:16px/1.5 sans-serif}body{margin:0;background:#0b100e;color:#d6e2da;min-height:1600px}#skip{position:absolute;top:-1000px;left:16px}#background{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none}main{position:relative;padding:24px}h1{font-size:24px}nav{display:flex;gap:8px}button,label{padding:8px 16px;background:#122019;color:#aaa;border:1px solid #345;border-radius:8px}.selected,label:has(input:checked){background:#183c28;color:#41ff8b}fieldset{border:0;padding:16px 0;display:flex;gap:8px}aside{position:fixed;bottom:16px;right:16px;background:#163124;padding:16px}.card{position:relative;box-sizing:border-box;width:416px;height:248px;padding:8px;background:#17241c;color:white;margin-top:16px}.card img{display:block;width:400px;height:200px}.card h2{position:absolute;left:24px;top:144px;width:320px;height:32px;font-size:24px;margin:0;color:white}.card p{margin:8px 0 0;height:24px}#results{position:relative;margin:24px;white-space:pre-wrap}
+</style>
+<style>#glass-bar{position:sticky;top:0;padding:8px 16px;background:rgba(11,16,14,.82);color:#d6e2da;backdrop-filter:blur(10px)}#glass-bar.clear{background:transparent}#glass-bar.no-blur{backdrop-filter:none}</style>
+<script>
+const saved={'d:all':'contrast'};window.chrome={storage:{local:{get:async keys=>Array.isArray(keys)?Object.fromEntries(keys.map(key=>[key,saved[key]])):{[keys]:saved[keys]},set:async items=>Object.assign(saved,items)}},runtime:{onMessage:{addListener(){}}}};
+</script>
+<script src="../../src/color.js"></script><script src="../../src/engine.js"></script><script src="../../src/contrast.js"></script><script src="../../src/contrast-inline.js"></script><script src="../../src/contrast-output.js"></script><script src="../../src/contrast-dom.js"></script><script src="../../src/toggle.js"></script>
+<script>const create=EinkContrastDom.createContrastEngine;let engine;EinkContrastDom.createContrastEngine=(...args)=>(engine=create(...args))</script>
+<script src="../../src/inject.js"></script>
+<a id="skip" href="#article">Skip to content</a><canvas id="background"></canvas>
+<header id="glass-bar"><span id="glass-title">A glass toolbar must convert</span></header>
+<main id="article"><h1 id="title">Article text must convert</h1><p id="body-text">A background canvas must not disable high contrast for this page.</p>
+<nav><button id="first" class="selected">First view</button><button id="second">Second view</button></nav>
+<fieldset><label id="choice-a"><input type="radio" name="choice" id="radio-a"> First choice</label><label id="choice-b"><input type="radio" name="choice" id="radio-b"> Second choice</label></fieldset>
+<article class="card"><img alt="Dark image placeholder" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Crect width='400' height='200' fill='%23111'/%3E%3C/svg%3E"><h2 id="photo-title">Photo overlay stays white</h2><p id="photo-detail">The card caption must convert.</p></article>
+</main><aside>Fixed foreground</aside><pre id="results">Running…</pre>
+<script>
+const get=id=>document.getElementById(id),style=id=>getComputedStyle(get(id)),results=[]
+for(const button of [get('first'),get('second')])button.addEventListener('click',()=>{for(const peer of [get('first'),get('second')])peer.classList.toggle('selected',peer===button)})
+const canvas=get('background');canvas.width=1280;canvas.height=720;const context=canvas.getContext('2d');context.fillStyle='rgba(65,255,139,.15)';context.fillRect(80,80,8,8)
+function check(name,fn){try{fn();results.push({name,pass:true})}catch(error){results.push({name,pass:false,error:error.message})}}
+function equal(actual,expected){if(actual!==expected)throw Error(actual+' != '+expected)}
+async function settle(){for(let i=0;i<120;i++){await new Promise(r=>requestAnimationFrame(r));if(engine&&engine.stats().pending===0){await new Promise(r=>requestAnimationFrame(r));return}}throw Error('Queue did not settle')}
+(async()=>{
+ await settle()
+ check('Document background converts despite fixed canvas and offscreen link',()=>equal(getComputedStyle(document.body).backgroundColor,'rgb(255, 255, 255)'))
+ check('Actual article title and body text convert',()=>{equal(style('title').color,'rgb(0, 0, 0)');equal(style('body-text').color,'rgb(0, 0, 0)')})
+ check('A translucent glass toolbar and its text convert',()=>{equal(style('glass-bar').backgroundColor,'rgb(255, 255, 255)');equal(style('glass-title').color,'rgb(0, 0, 0)');equal(style('glass-bar').backdropFilter,'blur(10px)')})
+ get('glass-bar').classList.add('clear');await settle()
+ check('A transparent glass toolbar still receives a white backing',()=>equal(style('glass-bar').backgroundColor,'rgb(255, 255, 255)'))
+ get('glass-bar').classList.add('no-blur');await settle()
+ check('Removing the backdrop filter releases the temporary white surface',()=>equal(style('glass-bar').backgroundColor,'rgba(0, 0, 0, 0)'))
+ get('glass-bar').className='';await settle()
+ check('Restoring the backdrop filter reconverts the toolbar',()=>equal(style('glass-bar').backgroundColor,'rgb(255, 255, 255)'))
+ get('second').click();await settle()
+ check('Selected tab transfers its black fill',()=>{equal(style('second').backgroundColor,'rgb(0, 0, 0)');equal(style('second').color,'rgb(255, 255, 255)');equal(style('first').backgroundColor,'rgb(255, 255, 255)')})
+ get('radio-a').click();await settle();get('radio-b').click();await settle()
+ check('Native radio label selection transfers without stale fill',()=>{equal(style('choice-b').backgroundColor,'rgb(0, 0, 0)');equal(style('choice-a').backgroundColor,'rgb(255, 255, 255)')})
+ check('Padded photo foreground keeps original white without a guessed backing',()=>{equal(style('photo-title').color,'rgb(255, 255, 255)');equal(style('photo-title').backgroundColor,'rgba(0, 0, 0, 0)');equal(style('photo-detail').color,'rgb(0, 0, 0)')})
+ const failures=engine.stats().failures
+ engine.stop()
+ check('Stopping restores the authored dark page and text',()=>{equal(getComputedStyle(document.body).backgroundColor,'rgb(11, 16, 14)');equal(style('body-text').color,'rgb(214, 226, 218)');equal(style('glass-bar').backgroundColor,'rgba(11, 16, 14, 0.82)')})
+ engine.start(document);await settle()
+ check('Restart converts the page again without errors',()=>{equal(getComputedStyle(document.body).backgroundColor,'rgb(255, 255, 255)');equal(engine.stats().failures,failures)})
+ get('results').textContent=JSON.stringify({pass:results.filter(r=>r.pass).length,total:results.length,results},null,2)
+})().catch(error=>{get('results').textContent=JSON.stringify({error:error.stack})})
+</script></html>
